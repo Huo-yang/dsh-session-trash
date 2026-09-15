@@ -1,0 +1,3 @@
+# Only esbuild's installation script is needed for the build toolchain.
+allowBuilds:
+  esbuild: true

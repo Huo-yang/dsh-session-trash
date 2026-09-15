@@ -1,0 +1,75 @@
+{
+  "name": "dsh-session-trash",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DSH 会话删除与回收站管理插件：会话行删除入口、回收站面板、删除策略设置",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "docs"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:handlers": "node scripts/handlers-test.mjs",
+    "test:e2e": "node scripts/e2e.mjs",
+    "test:ui": "node scripts/ui-test.mjs",
+    "test:ghost": "node scripts/ghost-test.mjs",
+    "test:store": "node --test scripts/store-test.mjs",
+    "test:client": "node --test scripts/client-test.mjs",
+    "test": "pnpm run test:handlers && pnpm run test:store && pnpm run test:client",
+    "docs:check": "node scripts/check-docs.mjs",
+    "release:prepare": "node scripts/release.mjs",
+    "check": "pnpm run docs:check && pnpm run typecheck && pnpm test && pnpm run build"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-home-paths": "^0.1.5-rc.2"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "playwright-core": "^1.63.0",
+    "typescript": "^5.7.0"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=11.19.0 <12"
+  },
+  "keywords": [
+    "dsh",
+    "plugin",
+    "session",
+    "trash",
+    "retention"
+  ]
+}

@@ -1,0 +1,14 @@
+# dsh-session-trash 的组合层：把回收站插件的 Host 行加入 dsh-web-app 组合。
+#
+# 只需要一行。这一行的包同时携带两半边：
+# - Host 半边（`lib/index.js`）在 ctx.webServer 上注册 /session-trash 路由，
+#   并持有回收站索引与删除策略。
+# - 浏览器半边（`lib/client.js`）因为包内声明了 `dsh.client`，会被
+#   @deepseek-ai/dsh-client-modules 扫描进 window.__DSH_BOOT__，无需第二个 Loader 行；
+#   再挂一行反而会被判为“同一包多个活动来源”而报错。
+#
+# 行顺序不承载加载语义（Cordis 激活由服务可用性驱动）。
+
+- insert:
+    - id: session-trash
+      name: dsh-session-trash

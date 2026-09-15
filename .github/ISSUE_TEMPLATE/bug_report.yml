@@ -1,0 +1,29 @@
+name: Bug 反馈 / Bug report
+description: 报告可复现的问题 / Report a reproducible problem
+title: '[Bug] '
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: 运行环境 / Environment
+      description: DSH、插件、Node.js、系统及浏览器版本 / Versions of DSH, plugin, Node.js, OS and browser
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      description: 使用示例会话；请勿公开真实日志、访问令牌或私人路径 / Use example sessions; omit private logs, tokens and paths
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期与实际结果 / Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 截图或错误信息 / Screenshots or errors
+      description: 请先移除个人信息 / Remove personal information first

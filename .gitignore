@@ -1,0 +1,23 @@
+node_modules/
+lib/
+dist/
+*.tsbuildinfo
+
+# Local work and test artifacts
+work/
+local/
+coverage/
+playwright-report/
+test-results/
+*.log
+.dsh/
+.dsh-test/
+
+# Local environment and editors
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
