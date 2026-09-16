@@ -7,7 +7,7 @@
 <p align="center">Retention periods, deletion confirmations, and automatic cleanup — integrated with native settings</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.0-orange" alt="Version 0.1.0" />
+  <img src="https://img.shields.io/badge/version-0.1.1-orange" alt="Version 0.1.1" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D24-brightgreen" alt="Node.js >= 24" />
   <img src="https://img.shields.io/badge/pnpm-11.19.0-F69220" alt="pnpm 11.19.0" />
@@ -72,7 +72,7 @@ Prerequisite: DSH. Download `dsh-session-trash-<version>.tgz` and `SHA256SUMS.tx
 Pass the downloaded archive directly to DSH; manual extraction is not required:
 
 ```powershell
-dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.1.0.tgz"
+dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.1.1.tgz"
 ```
 
 If the profile does not already contain the Web GUI, add it and start DSH:
