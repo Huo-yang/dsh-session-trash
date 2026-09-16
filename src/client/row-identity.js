@@ -18,8 +18,25 @@
 /** React 内部 props 在 DOM 节点上的键前缀。 */
 const REACT_PROPERTY_PREFIXES = ['__reactFiber$', '__reactInternalInstance$']
 
-/** 会话 id 的形状，用于在 props 里辨认。 */
-const SESSION_ID_PATTERN = /^session-[0-9a-fA-F-]{8,}$/
+/**
+ * 会话 id 的两种已知形状，用于在 props 里辨认。
+ *
+ * DSH 自己的会话仓库会生成 `session-…`；ACP 的 `session/new` 则直接把
+ * `randomUUID()` 的结果作为会话 id。这里明确接受这两类，避免把普通 props 字符串
+ * 当成会话，同时保留对 DSH 测试仓库 `session-<n>` 的兼容。
+ */
+const PREFIXED_SESSION_ID_PATTERN = /^session-(?:\d+|[0-9a-f-]{8,})$/i
+const UUID_SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+/**
+ * 判断一个值是否是 DSH 已知的会话 id。
+ * @param {unknown} value 候选值。
+ * @returns {value is string} 是否为会话 id。
+ */
+export function isSessionId(value) {
+  return typeof value === 'string'
+    && (PREFIXED_SESSION_ID_PATTERN.test(value) || UUID_SESSION_ID_PATTERN.test(value))
+}
 
 /**
  * fiber `return` 链的扫描深度。
@@ -96,7 +113,7 @@ function readSessionNode(row) {
       if (props === null || typeof props !== 'object') continue
       const candidate = props.node ?? props.session ?? props.item
       const sessionId = candidate?.sessionId ?? candidate?.id
-      if (typeof sessionId === 'string' && SESSION_ID_PATTERN.test(sessionId)) {
+      if (isSessionId(sessionId)) {
         return { sessionId, title: candidate.title, blank: candidate.blank ?? props.blank }
       }
     }

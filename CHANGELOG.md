@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### 修复 / Fixes
+
+- 兼容 ACP 创建的裸 UUID 会话，使其正常显示“移入回收站”和“彻底删除”。
+- 工作区分组展开时立即重新应用隐藏状态，避免回收站会话短暂闪现。
+
+Support bare UUID session IDs created through ACP, and immediately reapply hidden state when expanding workspace groups to prevent trashed sessions from flashing briefly.
+
 ## [0.1.0] - 2026-09-16
 
 ### 功能 / Features
