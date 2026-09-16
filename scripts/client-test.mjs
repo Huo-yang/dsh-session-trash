@@ -5,8 +5,37 @@ import { build } from 'esbuild'
 import { fileURLToPath } from 'node:url'
 import { createGhostProbe } from '../src/client/ghost-probe.js'
 import { hasPendingStrikes, listMissingSessions, retainProbeSessions } from '../src/client/ghost-sessions.js'
+import { isSessionId, readRowIdentity } from '../src/client/row-identity.js'
 
 const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve() }
+
+test('会话身份同时接受 DSH 前缀 id 和 ACP 裸 UUID', () => {
+  assert.equal(isSessionId('session-42'), true)
+  assert.equal(isSessionId('session-35148e3f-1111-4222-8333-444444444444'), true)
+  assert.equal(isSessionId('35148e3f-1111-4222-8333-444444444444'), true)
+  assert.equal(isSessionId('workspace-alpha'), false)
+  assert.equal(isSessionId('35148e3f-1111-2222-3333-444444444444'), false)
+})
+
+test('从真实 fiber 路径读出 ACP 裸 UUID 会话', t => {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, 'HTMLElement')
+  class FakeElement {}
+  globalThis.HTMLElement = FakeElement
+  t.after(() => {
+    if (saved) Object.defineProperty(globalThis, 'HTMLElement', saved)
+    else delete globalThis.HTMLElement
+  })
+  const row = new FakeElement()
+  row.__reactFiber$test = {
+    memoizedProps: { node: { id: '35148e3f-1111-4222-8333-444444444444', title: 'ACP', blank: false } },
+    return: null,
+  }
+  assert.deepEqual(readRowIdentity(row), {
+    sessionId: '35148e3f-1111-4222-8333-444444444444',
+    title: 'ACP',
+    blank: false,
+  })
+})
 function deferred() {
   let resolve, reject
   const promise = new Promise((yes, no) => { resolve = yes; reject = no })
@@ -126,7 +155,8 @@ const stubs = {
   'panel.js': 'export function openTrashPanel() {}',
   'row-identity.js': 'export function readRowIdentity() {}; export function readGroupIdentity() {}',
   'row-filter.js': `export function hideSession() {}; export function listHiddenSessions(){return []}; export function listPurgedSessions(){return []};
-    export function rememberPurged(id){globalThis.__trashTest.events.push('mark:'+id)}; export function setHiddenEntries() {}; export function sweep() {}`,
+    export function rememberPurged(id){globalThis.__trashTest.events.push('mark:'+id)}; export function setHiddenEntries() {};
+    export function sweep() {globalThis.__trashTest.sweeps++}`,
 }
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL('../src/client/index.js', import.meta.url))],
@@ -141,11 +171,16 @@ const bundle = await build({
 const { apply } = await import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'))
 
 async function menuFixture(t, { current = 'session-a', ids = ['session-a', 'session-b'], fail = false, confirmed = true, useTrash = false } = {}) {
-  const saved = Object.fromEntries(['document', 'MutationObserver', '__trashTest', '__dshSessionTrash', '__dshSessionTrashErrors'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
-  const state = { policy: { useTrash, confirmDelete: false }, events: [], messages: [], done: deferred(), fail, confirmed }
+  const saved = Object.fromEntries(['document', 'window', 'MutationObserver', '__trashTest', '__dshSessionTrash', '__dshSessionTrashErrors'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
+  const state = { policy: { useTrash, confirmDelete: false }, events: [], messages: [], done: deferred(), fail, confirmed, sweeps: 0, timers: [] }
   globalThis.__trashTest = state
   globalThis.document = { body: {} }
-  globalThis.MutationObserver = class { observe() {}; disconnect() {} }
+  globalThis.window = { setTimeout(fn, delay) { state.timers.push({ fn, delay }); return state.timers.length } }
+  globalThis.MutationObserver = class {
+    constructor(callback) { state.mutate = callback }
+    observe() {}
+    disconnect() {}
+  }
   const snapshot = { current, ids, byId: Object.fromEntries(ids.map(id => [id, { cwd: 'same' }])) }
   const sessions = {
     list: { getSnapshot: () => snapshot },
@@ -200,4 +235,13 @@ test('普通软删除不进入永久删除切换流程', async t => {
   await f.done.promise
   await flush()
   assert.deepEqual(f.events, ['delete:trash'])
+})
+
+test('工作区展开插入会话行时立即过滤，重同步仍按 300ms 合并', async t => {
+  const f = await menuFixture(t)
+  assert.equal(f.sweeps, 0)
+  f.mutate()
+  assert.equal(f.sweeps, 1)
+  assert.equal(f.timers.length, 1)
+  assert.equal(f.timers[0].delay, 300)
 })

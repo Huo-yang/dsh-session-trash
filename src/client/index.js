@@ -294,7 +294,12 @@ export function apply(ctx) {
     void probeGhostSessions()
   }, SWEEP_THROTTLE_MS)
 
-  const observer = new MutationObserver(() => { scheduleSync() })
+  const observer = new MutationObserver(() => {
+    // 展开工作区时 React 会重新插入会话行。隐藏集合已经在内存中，先同步应用它，
+    // 才不会让回收站会话在下面那次 300ms 状态同步前短暂出现。
+    sweep()
+    scheduleSync()
+  })
   observer.observe(document.body, { childList: true, subtree: true })
   menu.observe()
   const disarmSettings = armSettingsSection(ctx)
@@ -417,5 +422,6 @@ function createThrottled(action, waitMs) {
  */
 function displayLabel(title, sessionId) {
   if (typeof title === 'string' && title !== '') return title
-  return `会话 ${sessionId.slice('session-'.length, 'session-'.length + 8)}`
+  const compactId = sessionId.startsWith('session-') ? sessionId.slice('session-'.length) : sessionId
+  return `会话 ${compactId.slice(0, 8)}`
 }
