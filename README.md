@@ -7,7 +7,7 @@
 <p align="center">支持保留天数、删除确认与到期自动清理，设置融入原生界面</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.0-orange" alt="Version 0.1.0" />
+  <img src="https://img.shields.io/badge/version-0.1.1-orange" alt="Version 0.1.1" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D24-brightgreen" alt="Node.js >= 24" />
   <img src="https://img.shields.io/badge/pnpm-11.19.0-F69220" alt="pnpm 11.19.0" />
@@ -72,7 +72,7 @@ DSH 原生“删除工作区”只移除工作区登记，保留项目目录和�
 将下载的压缩包直接交给 DSH 安装，无需手工解压：
 
 ```powershell
-dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.1.0.tgz"
+dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.1.1.tgz"
 ```
 
 仅当该 profile 尚未配置 Web GUI 时，再添加 Web 插件，然后启动 DSH：
