@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-trash",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "description": "DSH 会话删除与回收站管理插件：会话行删除入口、回收站面板、删除策略设置",
