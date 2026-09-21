@@ -7,7 +7,7 @@
 <p align="center">支持保留天数、删除确认与到期自动清理，设置融入原生界面</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.1-orange" alt="Version 0.1.1" />
+  <img src="https://img.shields.io/badge/version-0.1.2-orange" alt="Version 0.1.2" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D24-brightgreen" alt="Node.js >= 24" />
   <img src="https://img.shields.io/badge/pnpm-11.19.0-F69220" alt="pnpm 11.19.0" />
@@ -57,11 +57,11 @@ DSH 原生“删除工作区”只移除工作区登记，保留项目目录和�
 
 | 项目 | 当前范围 |
 | --- | --- |
-| DSH | 面向 `0.1.5-rc.x`；锁定依赖包含 `0.1.5-rc.2`，未保证所有版本兼容 |
+| DSH | 每个版本已验证的 DSH 版本记录在对应 GitHub Release 说明中 |
 | 界面 | DSH Web GUI；菜单识别依赖中文「归档会话」文案 |
 | Node.js | 开发基线为 Node.js 24，本地验证版本为 `24.11.0` |
 | 包管理器 | pnpm `11.19.0`，由 `packageManager` 固定 |
-| 系统 | Windows 已做本地隔离验证；GitHub CI 配置覆盖 Windows / Linux，远端结果待运行 |
+| 系统 | Windows 已做本地隔离验证；GitHub CI 覆盖 Windows / Linux |
 
 菜单与工具栏使用 DOM 注入，部分身份识别依赖 React 内部结构，上游升级后需要重新验证。英文 README 不代表插件界面已完整支持英文。
 
@@ -72,7 +72,7 @@ DSH 原生“删除工作区”只移除工作区登记，保留项目目录和�
 将下载的压缩包直接交给 DSH 安装，无需手工解压：
 
 ```powershell
-dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.1.1.tgz"
+dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.1.2.tgz"
 ```
 
 仅当该 profile 尚未配置 Web GUI 时，再添加 Web 插件，然后启动 DSH：
@@ -90,7 +90,7 @@ dsh --profile trash --port 3080
 | --- | --- |
 | 移入回收站 | 默认只记录索引，日志保持原位，可以恢复 |
 | 关闭暂存后点击移入回收站 | 先明确确认永久删除，再发送永久删除请求 |
-| 会话菜单中的彻底删除 | 始终确认；成功后清理日志和工作区关联 |
+| 会话菜单中的彻底删除 | 始终确认；先释放 live 运行时，再清理日志和工作区关联 |
 | 清空回收站 | 逐条处理，失败项保留并显示原因 |
 | 到期清理 | 启动时检查一次，此后每 30 分钟检查 |
 | 恢复 | 确认日志仍在，或将完整暂存目录搬回原位置后，再移除索引 |

@@ -7,7 +7,7 @@
 <p align="center">Retention periods, deletion confirmations, and automatic cleanup — integrated with native settings</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.1-orange" alt="Version 0.1.1" />
+  <img src="https://img.shields.io/badge/version-0.1.2-orange" alt="Version 0.1.2" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D24-brightgreen" alt="Node.js >= 24" />
   <img src="https://img.shields.io/badge/pnpm-11.19.0-F69220" alt="pnpm 11.19.0" />
@@ -57,11 +57,11 @@ Configure trash behavior, retention days, confirmation prompts, and automatic cl
 
 | Component | Current scope |
 | --- | --- |
-| DSH | Targets `0.1.5-rc.x`; locked dependencies include `0.1.5-rc.2`. Compatibility with every version is not guaranteed |
+| DSH | The tested DSH version for each plugin release is recorded in its GitHub Release notes |
 | Interface | DSH Web GUI; menu detection depends on the Chinese “归档会话” label |
 | Node.js | Development baseline: Node.js 24; locally verified with `24.11.0` |
 | Package manager | pnpm `11.19.0`, pinned through `packageManager` |
-| OS | Isolated tests verified locally on Windows. GitHub CI is configured for Windows and Linux; remote runs are pending |
+| OS | Isolated tests are verified locally on Windows; GitHub CI covers Windows and Linux |
 
 Menu and toolbar integration uses DOM injection, and identity detection depends partly on React internals. Revalidate after upstream upgrades. This English README does not imply a fully localized English plugin interface.
 
@@ -72,7 +72,7 @@ Prerequisite: DSH. Download `dsh-session-trash-<version>.tgz` and `SHA256SUMS.tx
 Pass the downloaded archive directly to DSH; manual extraction is not required:
 
 ```powershell
-dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.1.1.tgz"
+dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.1.2.tgz"
 ```
 
 If the profile does not already contain the Web GUI, add it and start DSH:
@@ -90,7 +90,7 @@ Open the URL printed by DSH and use its access token as required. Release archiv
 | --- | --- |
 | Move to trash | Records an index entry by default; logs stay in place and can be restored |
 | Move to trash with retention disabled | Requires explicit permanent-delete confirmation before sending that intent |
-| Delete permanently from the session menu | Always requires confirmation; removes logs and workspace references on success |
+| Delete permanently from the session menu | Always requires confirmation; releases the live runtime before removing logs and workspace references |
 | Empty trash | Processes entries individually; failures remain visible with an explanation |
 | Expiration cleanup | Runs at startup and every 30 minutes |
 | Restore | Verifies that logs exist, or moves an intact staged directory back before removing the index entry |

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-21
+
+### 修复 / Fixes
+
+- 彻底删除 live 会话前先完整释放 Agent 与 Session 运行时实例，避免文件已删除后会话仍被 DSH 列表返回。
+- 删除期间阻止同 ID 会话重新加载；运行时释放失败时保留日志、回收站索引和工作区关联以便重试。
+
+Release live Agent and Session instances before permanent deletion, block same-ID reactivation during the deletion window, and retain all recoverable state when runtime teardown fails.
+
 ## [0.1.1] - 2026-09-16
 
 ### 修复 / Fixes
