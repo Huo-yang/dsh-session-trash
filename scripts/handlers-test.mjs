@@ -89,8 +89,9 @@ function makeStore(policy = {}) {
     async list() {
       return state.entries
     },
-    async add(details) {
+    async add(details, hooks = {}) {
       for (const detail of details) {
+        await hooks.beforeAdd?.(detail.sessionId)
         state.addedIds.push(detail.sessionId)
         state.entries.push({ sessionId: detail.sessionId, title: detail.title })
       }
@@ -107,10 +108,12 @@ function makeStore(policy = {}) {
       }
       return { purged, failed }
     },
-    async restore(sessionId) {
+    async restore(sessionId, hooks = {}) {
       const before = state.entries.length
       state.entries = state.entries.filter(entry => entry.sessionId !== sessionId)
-      return { restored: state.entries.length !== before }
+      const restored = state.entries.length !== before
+      if (restored) await hooks.afterRestore?.(sessionId)
+      return { restored }
     },
     async purge(sessionId, onRemoved) {
       timeline.push(`purge:${sessionId}`)
@@ -353,6 +356,22 @@ console.log('== 12. 协议边界：缺 sessionId ==')
     deleteCode = error?.code ?? ''
   }
   check(deleteCode === 'trash/no-session', `空会话列表报 trash/no-session（实际：${deleteCode}）`)
+}
+
+console.log('== 13. 软删除与恢复接入运行时生命周期 ==')
+{
+  const events = []
+  const runtime = {
+    async trash(id) { events.push(`release:${id}`); return () => events.push(`rollback:${id}`) },
+    async untrash(id) { events.push(`unblock:${id}`) },
+    async acquire() { return () => {} },
+  }
+  const store = makeStore()
+  const handlers = createHandlers(makeCtx({}), store, () => makeRegistry([]), runtime)
+  await handlers.delete.run({ sessions: [{ sessionId: SESSION }], intent: 'trash' })
+  await handlers.restore.run({ sessionId: SESSION })
+  check(events.join(' | ') === `release:${SESSION} | unblock:${SESSION}`,
+    `移入时释放、恢复后解除阻止（实际：${events.join(' → ')}）`)
 }
 
 console.log('')

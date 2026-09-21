@@ -303,17 +303,32 @@ export function createTrashStore({ file, trashRoot, sessionsRoot, now = () => Da
       return rows
     },
 
+    /** 只读取回收站会话 id，供运行时在启动阶段恢复阻止集合。 */
+    async sessionIds() {
+      return (await load()).sessions.map(entry => entry.sessionId)
+    },
+
     /**
-     * 记录删除（软删除）。会话日志保持原位，恢复只需删除索引条目。
+     * 记录删除（软删除）。先通过 hook 释放运行时，再写索引；会话日志保持原位。
      * @param {object[]} inputs 待删除会话，每项含 `sessionId` 与可选元数据。
      * @returns {Promise<{added: object[]}>} 新增或刷新的条目。
      */
-    async add(inputs) {
+    async add(inputs, hooks = {}) {
       /** @type {object[]} */
       const added = []
-      await commit(current => {
-        addEntries(current, inputs, added)
-      })
+      const rollbacks = []
+      try {
+        await commit(async current => {
+          for (const input of inputs) {
+            const rollback = await hooks.beforeAdd?.(String(input.sessionId))
+            if (typeof rollback === 'function') rollbacks.push(rollback)
+          }
+          addEntries(current, inputs, added)
+        })
+      } catch (error) {
+        for (const rollback of rollbacks.reverse()) rollback()
+        throw error
+      }
       return { added }
     },
 
@@ -333,7 +348,7 @@ export function createTrashStore({ file, trashRoot, sessionsRoot, now = () => Da
      * @param {string} sessionId 会话 id。
      * @returns {Promise<{restored: boolean, reason?: string}>} 恢复结果。
      */
-    async restore(sessionId) {
+    async restore(sessionId, hooks = {}) {
       let restored = false
       /** @type {string|undefined} */
       let reason
@@ -347,6 +362,7 @@ export function createTrashStore({ file, trashRoot, sessionsRoot, now = () => Da
         current.sessions.splice(index, 1)
         restored = true
       })
+      if (restored) await hooks.afterRestore?.(sessionId)
       return reason === undefined ? { restored } : { restored, reason }
     },
 
@@ -402,6 +418,7 @@ export function createTrashStore({ file, trashRoot, sessionsRoot, now = () => Da
         await lifecycle.onRemoved?.(entry.sessionId)
         current.sessions = current.sessions.filter(item => item.sessionId !== entry.sessionId)
         await persist(current)
+        await lifecycle.afterRemove?.(entry.sessionId)
       } catch (error) {
         releaseBlock()
         result.failed.push({ sessionId: entry.sessionId, message: error instanceof Error ? error.message : String(error) })

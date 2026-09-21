@@ -52,6 +52,32 @@ test('删除失败保留索引、日志与关联，修复条件后可以重试',
   await assert.rejects(access(path))
 })
 
+test('移入回收站先释放运行时；释放失败不写索引，恢复成功后解除阻止', async t => {
+  const f = await fixture(t)
+  const path = await f.seed('session-trash-runtime')
+  await f.store.restore('session-trash-runtime')
+  const events = []
+  await assert.rejects(f.store.add([{ sessionId: 'session-trash-runtime' }], {
+    async beforeAdd(id) { events.push(`release-failed:${id}`); throw new Error('dispose failed') },
+  }), /dispose failed/)
+  assert.deepEqual((await f.store.load()).sessions, [])
+  assert.equal(await readFile(join(path, 'log'), 'utf8'), 'synthetic log')
+
+  await f.store.add([{ sessionId: 'session-trash-runtime' }], {
+    async beforeAdd(id) { events.push(`released:${id}`); return () => events.push(`rollback:${id}`) },
+  })
+  assert.deepEqual((await f.store.load()).sessions.map(x => x.sessionId), ['session-trash-runtime'])
+  const restored = await f.store.restore('session-trash-runtime', {
+    async afterRestore(id) { events.push(`unblocked:${id}`) },
+  })
+  assert.deepEqual(restored, { restored: true })
+  assert.deepEqual(events, [
+    'release-failed:session-trash-runtime',
+    'released:session-trash-runtime',
+    'unblocked:session-trash-runtime',
+  ])
+})
+
 test('先释放 live 运行时再删文件；释放失败时保留日志、索引和工作区关联', async t => {
   const f = await fixture(t)
   const path = await f.seed('session-live-order')

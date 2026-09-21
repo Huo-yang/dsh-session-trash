@@ -17,6 +17,11 @@ import { installRuntimeReleaseGuard } from './runtime.js'
 
 /** 到期清点的间隔；条目粒度是天，半小时一次足以让删除按保留期发生。 */
 const SWEEP_INTERVAL_MS = 30 * 60 * 1000
+const NOOP_RUNTIME = {
+  acquire: async () => () => {},
+  trash: async () => () => {},
+  untrash: async () => {},
+}
 
 /**
  * 插件入口。
@@ -32,6 +37,10 @@ export function apply(ctx) {
     sessionsRoot,
   })
   const runtime = installRuntimeReleaseGuard(ctx)
+  void runtime.initialize(store.sessionIds().catch(error => {
+    ctx.logger('session-trash').warn(`恢复回收站运行时阻止集合失败：${error instanceof Error ? error.message : String(error)}`)
+    return []
+  }))
   // 工作区注册表：彻底删除时要同时把会话从工作区条目里摘掉。用 `ctx.inject`
   // 等待它出现（没有工作区注册表的 profile 会一直等不到，因此只在拿到时才用）。
   /** @type {any} */
@@ -70,7 +79,7 @@ export function apply(ctx) {
  * @param {() => any} getWorkspaceRegistry 取当前工作区注册表。
  * @returns {Promise<void>} 完成后 resolve。
  */
-export async function sweepQuietly(ctx, store, getWorkspaceRegistry, runtime = { acquire: async () => () => {} }) {
+export async function sweepQuietly(ctx, store, getWorkspaceRegistry, runtime = NOOP_RUNTIME) {
   try {
     const { purged, failed } = await store.sweep(false, removalHooks(ctx, getWorkspaceRegistry, runtime))
     for (const failure of failed) ctx.logger('session-trash').warn(`清理失败 ${failure.sessionId}: ${failure.message}`)
@@ -125,6 +134,7 @@ function removalHooks(ctx, getWorkspaceRegistry, runtime) {
   const onRemoved = sessionId => detachFromWorkspaces(ctx, getWorkspaceRegistry(), sessionId)
   onRemoved.beforeRemove = sessionId => runtime.acquire(sessionId)
   onRemoved.onRemoved = onRemoved
+  onRemoved.afterRemove = sessionId => runtime.untrash(sessionId)
   return onRemoved
 }
 
@@ -153,7 +163,7 @@ async function readStoredCwd(persistence, sessionId) {
  * @param {() => any} getWorkspaceRegistry 取当前工作区注册表（可能尚未就绪）。
  * @returns {Record<string, {method: string, run: (payload: any) => Promise<unknown>}>} 端点表。
  */
-export function createHandlers(ctx, store, getWorkspaceRegistry, runtime = { acquire: async () => () => {} }) {
+export function createHandlers(ctx, store, getWorkspaceRegistry, runtime = NOOP_RUNTIME) {
   const hooks = removalHooks(ctx, getWorkspaceRegistry, runtime)
   return {
     state: {
@@ -188,7 +198,7 @@ export function createHandlers(ctx, store, getWorkspaceRegistry, runtime = { acq
           }
           return { mode: 'permanent', removed: result.purged }
         }
-        const { added } = await store.add(details)
+        const { added } = await store.add(details, { beforeAdd: id => runtime.trash(id) })
         return { mode: 'trashed', added }
       },
     },
@@ -197,7 +207,7 @@ export function createHandlers(ctx, store, getWorkspaceRegistry, runtime = { acq
       method: 'POST',
       run: async payload => {
         const sessionId = readSingleSessionId(payload)
-        const result = await store.restore(sessionId)
+        const result = await store.restore(sessionId, { afterRestore: id => runtime.untrash(id) })
         if (!result.restored) throw new TrashRequestError('trash/not-in-trash', `会话 ${sessionId} 不在回收站中`)
         return { sessionId }
       },
