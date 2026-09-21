@@ -41,7 +41,8 @@
     "test:ghost": "node scripts/ghost-test.mjs",
     "test:store": "node --test scripts/store-test.mjs",
     "test:client": "node --test scripts/client-test.mjs",
-    "test": "pnpm run test:handlers && pnpm run test:store && pnpm run test:client",
+    "test:runtime": "node --test scripts/runtime-test.mjs",
+    "test": "pnpm run test:handlers && pnpm run test:store && pnpm run test:runtime && pnpm run test:client",
     "docs:check": "node scripts/check-docs.mjs",
     "release:prepare": "node scripts/release.mjs",
     "check": "pnpm run docs:check && pnpm run typecheck && pnpm test && pnpm run build"

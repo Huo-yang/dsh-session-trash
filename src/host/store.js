@@ -318,12 +318,12 @@ export function createTrashStore({ file, trashRoot, sessionsRoot, now = () => Da
     },
 
     /** 将登记与物理删除放在同一个队列槽内，恢复请求不能插入两步之间。 */
-    async addAndPurge(inputs, onRemoved = async () => {}) {
+    async addAndPurge(inputs, hooks = {}) {
       const result = { purged: [], failed: [] }
       await commit(async current => {
         addEntries(current, inputs)
         const wanted = new Set(inputs.map(input => String(input.sessionId)))
-        await removeEntries(current, entry => wanted.has(entry.sessionId), onRemoved, result)
+        await removeEntries(current, entry => wanted.has(entry.sessionId), hooks, result)
       })
       return result
     },
@@ -353,54 +353,61 @@ export function createTrashStore({ file, trashRoot, sessionsRoot, now = () => Da
     /**
      * 彻底删除一个条目：删除会话目录并移除索引条目。
      * @param {string} sessionId 会话 id。
-     * @param {(sessionId: string) => Promise<void>} [onRemoved] 文件删除成功后的关联清理。
+     * @param {Function|object} [hooks] 删除生命周期：先释放运行时，文件删除后再清理关联。
      * @returns {Promise<{purged: boolean, reason?: string}>} 删除结果。
      */
-    async purge(sessionId, onRemoved = async () => {}) {
-      const result = await removeMatching(entry => entry.sessionId === sessionId, onRemoved)
+    async purge(sessionId, hooks = {}) {
+      const result = await removeMatching(entry => entry.sessionId === sessionId, hooks)
       if (result.failed.length) throw new Error(result.failed[0].message)
       return result.purged.length ? { purged: true } : { purged: false, reason: 'not-in-trash' }
     },
 
     /** 清空时逐条报告成功与失败，失败条目保留以便重试。 */
-    async empty(onRemoved = async () => {}) {
-      const result = await removeMatching(() => true, onRemoved)
+    async empty(hooks = {}) {
+      const result = await removeMatching(() => true, hooks)
       return { purged: result.purged.length, purgedSessionIds: result.purged, failed: result.failed }
     },
 
     /** 自动与手动清点使用同一删除流程。 */
-    async sweep(force = false, onRemoved = async () => {}) {
+    async sweep(force = false, hooks = {}) {
       const timestamp = now()
       return removeMatching((entry, state) => {
         const expiry = expiryOf(entry, state.policy)
         return (force || state.policy.autoPurge) && expiry !== null && expiry <= timestamp
-      }, onRemoved, timestamp)
+      }, hooks, timestamp)
     },
   }
 
-  /** 文件删除、关联清理、索引更新在同一写队列内；批量失败互不影响。 */
-  async function removeMatching(matches, onRemoved, sweepAt) {
+  /** 运行时释放、文件删除、关联清理、索引更新在同一写队列内；批量失败互不影响。 */
+  async function removeMatching(matches, hooks, sweepAt) {
     const result = { purged: [], failed: [], checked: 0 }
     await commit(async current => {
       result.checked = current.sessions.length
-      await removeEntries(current, matches, onRemoved, result)
+      await removeEntries(current, matches, hooks, result)
       if (sweepAt !== undefined) current.lastSweepAt = sweepAt
     })
     return result
   }
 
-  async function removeEntries(current, matches, onRemoved, result) {
+  async function removeEntries(current, matches, hooks, result) {
+    const lifecycle = typeof hooks === 'function'
+      ? { beforeRemove: hooks.beforeRemove, onRemoved: hooks }
+      : hooks
     for (const entry of [...current.sessions]) {
       if (!matches(entry, current)) continue
+      let releaseBlock = () => {}
       try {
+        releaseBlock = await lifecycle.beforeRemove?.(entry.sessionId) ?? releaseBlock
         await removeEntryFiles(entry, () => persist(current))
-        await onRemoved(entry.sessionId)
+        await lifecycle.onRemoved?.(entry.sessionId)
+        current.sessions = current.sessions.filter(item => item.sessionId !== entry.sessionId)
+        await persist(current)
       } catch (error) {
+        releaseBlock()
         result.failed.push({ sessionId: entry.sessionId, message: error instanceof Error ? error.message : String(error) })
         continue
       }
-      current.sessions = current.sessions.filter(item => item.sessionId !== entry.sessionId)
-      await persist(current)
+      releaseBlock()
       result.purged.push(entry.sessionId)
     }
   }

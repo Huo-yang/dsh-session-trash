@@ -52,6 +52,29 @@ test('删除失败保留索引、日志与关联，修复条件后可以重试',
   await assert.rejects(access(path))
 })
 
+test('先释放 live 运行时再删文件；释放失败时保留日志、索引和工作区关联', async t => {
+  const f = await fixture(t)
+  const path = await f.seed('session-live-order')
+  const order = []
+  const hooks = async id => { order.push(`detach:${id}`); await f.workspace.detachSession(id) }
+  hooks.beforeRemove = async id => { order.push(`release:${id}`); throw new Error('runtime busy') }
+  await assert.rejects(f.store.purge('session-live-order', hooks), /runtime busy/)
+  assert.equal(await readFile(join(path, 'log'), 'utf8'), 'synthetic log')
+  assert.deepEqual((await f.store.load()).sessions.map(x => x.sessionId), ['session-live-order'])
+  assert.deepEqual(f.workspace.sessionIds, ['session-live-order'])
+  assert.deepEqual(order, ['release:session-live-order'])
+
+  hooks.beforeRemove = async id => { order.push(`release:${id}`); return () => order.push(`unblock:${id}`) }
+  await f.store.purge('session-live-order', hooks)
+  assert.deepEqual(order, [
+    'release:session-live-order',
+    'release:session-live-order',
+    'detach:session-live-order',
+    'unblock:session-live-order',
+  ])
+  await assert.rejects(access(path))
+})
+
 test('清空继续处理失败项之后的会话，只摘除成功项关联', async t => {
   const f = await fixture(t)
   await f.seed('session-bad', true)
