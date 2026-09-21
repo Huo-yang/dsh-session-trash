@@ -13,6 +13,7 @@ import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { MAX_KEEP_DAYS } from './policy.js'
 import { createTrashStore } from './store.js'
 import { TrashRequestError, registerTrashRoutes } from './routes.js'
+import { installRuntimeReleaseGuard } from './runtime.js'
 
 /** 到期清点的间隔；条目粒度是天，半小时一次足以让删除按保留期发生。 */
 const SWEEP_INTERVAL_MS = 30 * 60 * 1000
@@ -30,6 +31,7 @@ export function apply(ctx) {
     trashRoot: `${storagesDir}/dsh_session_trash_files`,
     sessionsRoot,
   })
+  const runtime = installRuntimeReleaseGuard(ctx)
   // 工作区注册表：彻底删除时要同时把会话从工作区条目里摘掉。用 `ctx.inject`
   // 等待它出现（没有工作区注册表的 profile 会一直等不到，因此只在拿到时才用）。
   /** @type {any} */
@@ -37,7 +39,7 @@ export function apply(ctx) {
   ctx.inject(['workspaceRegistry'], scope => {
     workspaceRegistry = scope.workspaceRegistry
   })
-  const handlers = createHandlers(ctx, store, () => workspaceRegistry)
+  const handlers = createHandlers(ctx, store, () => workspaceRegistry, runtime)
 
   // 路由必须等到 `webServer` 真的被提供之后再注册：插件行的激活顺序与
   // webserver 行无关，`ctx.get('webServer')` 在启动早期会是 undefined。
@@ -52,12 +54,12 @@ export function apply(ctx) {
   // 启动时先清点一次（把上次运行期间到期的条目清掉），随后按固定间隔继续。
   // 清点是后台维护：没有 Web 服务的 profile 也照样清理自己的索引文件。
   const timer = setInterval(() => {
-    void sweepQuietly(ctx, store, () => workspaceRegistry)
+    void sweepQuietly(ctx, store, () => workspaceRegistry, runtime)
   }, SWEEP_INTERVAL_MS)
   timer.unref?.()
   ctx.effect(() => () => clearInterval(timer), 'session-trash: sweep timer')
   queueMicrotask(() => {
-    void sweepQuietly(ctx, store, () => workspaceRegistry)
+    void sweepQuietly(ctx, store, () => workspaceRegistry, runtime)
   })
 }
 
@@ -68,9 +70,9 @@ export function apply(ctx) {
  * @param {() => any} getWorkspaceRegistry 取当前工作区注册表。
  * @returns {Promise<void>} 完成后 resolve。
  */
-export async function sweepQuietly(ctx, store, getWorkspaceRegistry) {
+export async function sweepQuietly(ctx, store, getWorkspaceRegistry, runtime = { acquire: async () => () => {} }) {
   try {
-    const { purged, failed } = await store.sweep(false, id => detachFromWorkspaces(ctx, getWorkspaceRegistry(), id))
+    const { purged, failed } = await store.sweep(false, removalHooks(ctx, getWorkspaceRegistry, runtime))
     for (const failure of failed) ctx.logger('session-trash').warn(`清理失败 ${failure.sessionId}: ${failure.message}`)
     if (purged.length > 0) {
       ctx.logger('session-trash').info(`到期清理：彻底删除 ${String(purged.length)} 个会话`)
@@ -118,6 +120,14 @@ async function detachFromWorkspaces(ctx, registry, sessionId) {
   }
 }
 
+/** 运行时释放必须先于文件删除；工作区摘除则在文件删除成功后执行。 */
+function removalHooks(ctx, getWorkspaceRegistry, runtime) {
+  const onRemoved = sessionId => detachFromWorkspaces(ctx, getWorkspaceRegistry(), sessionId)
+  onRemoved.beforeRemove = sessionId => runtime.acquire(sessionId)
+  onRemoved.onRemoved = onRemoved
+  return onRemoved
+}
+
 /**
  * 读一个会话头里的 `cwd`。
  * @param {any} persistence 会话持久化服务。
@@ -143,8 +153,8 @@ async function readStoredCwd(persistence, sessionId) {
  * @param {() => any} getWorkspaceRegistry 取当前工作区注册表（可能尚未就绪）。
  * @returns {Record<string, {method: string, run: (payload: any) => Promise<unknown>}>} 端点表。
  */
-export function createHandlers(ctx, store, getWorkspaceRegistry) {
-  const onRemoved = id => detachFromWorkspaces(ctx, getWorkspaceRegistry(), id)
+export function createHandlers(ctx, store, getWorkspaceRegistry, runtime = { acquire: async () => () => {} }) {
+  const hooks = removalHooks(ctx, getWorkspaceRegistry, runtime)
   return {
     state: {
       method: 'GET',
@@ -172,7 +182,7 @@ export function createHandlers(ctx, store, getWorkspaceRegistry) {
         }
         if (intent === 'permanent') {
           // 仅显式永久删除请求进入落盘删除流程。
-          const result = await store.addAndPurge(details, onRemoved)
+          const result = await store.addAndPurge(details, hooks)
           if (result.failed.length) {
             throw new TrashRequestError('trash/delete-failed', result.failed.map(item => item.message).join('；'))
           }
@@ -198,7 +208,7 @@ export function createHandlers(ctx, store, getWorkspaceRegistry) {
       run: async payload => {
         const sessionId = readSingleSessionId(payload)
         // 仅在条目存在且文件删除成功后清理工作区关联。
-        const result = await store.purge(sessionId, onRemoved)
+        const result = await store.purge(sessionId, hooks)
         if (!result.purged) throw new TrashRequestError('trash/not-in-trash', `会话 ${sessionId} 不在回收站中`)
         return { sessionId }
       },
@@ -207,13 +217,13 @@ export function createHandlers(ctx, store, getWorkspaceRegistry) {
     empty: {
       method: 'POST',
       run: async () => {
-        return store.empty(onRemoved)
+        return store.empty(hooks)
       },
     },
 
     sweep: {
       method: 'POST',
-      run: async () => store.sweep(true, onRemoved),
+      run: async () => store.sweep(true, hooks),
     },
 
     /**
