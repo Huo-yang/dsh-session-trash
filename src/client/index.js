@@ -47,6 +47,7 @@ export function apply(ctx) {
         onChanged: () => { void refresh() },
         onBeforePurge: sessionIds => beforePermanentDelete(sessionIds),
         onPurged: sessionIds => afterPermanentDelete(sessionIds),
+        onRestored: () => refreshSessionList(),
       })
     },
   })
@@ -217,7 +218,9 @@ export function apply(ctx) {
       if (!confirmed) return
     }
     try {
-      if (irreversible) await beforePermanentDelete([sessionId])
+      // 两种删除都会释放 live 运行时；先切走当前会话，避免 DSH 在 disposal 后自动
+      // 创建一条空会话，也避免界面继续持有已经进入回收站的当前实例。
+      await beforePermanentDelete([sessionId])
       const result = await deleteSessions([{ sessionId, title }], irreversible ? 'permanent' : 'trash')
       // 暂存被关闭时 Host 会直接彻底删除，提示要跟着变，不能让用户以为还能恢复。
       if (result.mode === 'permanent') {
@@ -315,6 +318,7 @@ export function apply(ctx) {
         onChanged: () => { void refresh() },
         onBeforePurge: sessionIds => beforePermanentDelete(sessionIds),
         onPurged: sessionIds => afterPermanentDelete(sessionIds),
+        onRestored: () => refreshSessionList(),
       })
     },
     openSettings: () => openTrashSettingsSection(),

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### 修复 / Fixes
+
+- 会话移入回收站时完整释放 live Agent 与 Session，并在恢复或彻底删除前持续阻止同 ID 重新加载。
+- 恢复后解除运行时阻止并刷新 DSH 会话列表；释放失败时不写入回收站索引。
+
+Release live Agent and Session instances when moving a session to trash, keep the ID blocked until restore or purge, and leave the session visible when teardown fails.
+
 ## [0.1.2] - 2026-09-21
 
 ### 修复 / Fixes

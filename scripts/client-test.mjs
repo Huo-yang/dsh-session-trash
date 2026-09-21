@@ -229,12 +229,12 @@ test('取消永久删除确认不切换也不发送删除', async t => {
   assert.equal(f.messages.length, 0)
 })
 
-test('普通软删除不进入永久删除切换流程', async t => {
+test('普通软删除当前会话也先切换，因为 Host 会释放 live 运行时', async t => {
   const f = await menuFixture(t, { useTrash: true })
   f.menu.onTrash({ sessionId: 'session-a', title: 'A' })
   await f.done.promise
   await flush()
-  assert.deepEqual(f.events, ['delete:trash'])
+  assert.deepEqual(f.events, ['open:session-b', 'delete:trash'])
 })
 
 test('工作区展开插入会话行时立即过滤，重同步仍按 300ms 合并', async t => {

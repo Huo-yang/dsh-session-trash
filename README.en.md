@@ -88,7 +88,7 @@ Open the URL printed by DSH and use its access token as required. Release archiv
 
 | Action | Behavior |
 | --- | --- |
-| Move to trash | Records an index entry by default; logs stay in place and can be restored |
+| Move to trash | Releases the live runtime and blocks reactivation; logs stay in place and can be restored |
 | Move to trash with retention disabled | Requires explicit permanent-delete confirmation before sending that intent |
 | Delete permanently from the session menu | Always requires confirmation; releases the live runtime before removing logs and workspace references |
 | Empty trash | Processes entries individually; failures remain visible with an explanation |
@@ -98,7 +98,7 @@ Open the URL printed by DSH and use its access token as required. Release archiv
 
 Requests carry a fixed deletion intent. A policy change in another window cannot turn a soft delete into a permanent one. When deleting the current session, the plugin first tries to open another available session.
 
-Once physical deletion has started, logs may be incomplete. The plugin refuses automatic restoration and retains the entry for a deletion retry instead of reporting a false recovery success. Soft deletion only hides entries in Web clients using this plugin; other clients may still show the logs.
+Once physical deletion has started, logs may be incomplete. The plugin refuses automatic restoration and retains the entry for a deletion retry instead of reporting a false recovery success. Trashed sessions cannot keep running or reactivate through the AgentFactory, but their logs remain on disk, so clients that do not understand the plugin's trash index may still list them as cold sessions.
 
 ### Defaults
 

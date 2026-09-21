@@ -26,9 +26,10 @@ const REFRESH_INTERVAL_MS = 5000
  * @param {(sessionIds: string[]) => Promise<void>} [options.onPurged] 彻底删除之后的收尾
  *   （立墓碑 + 刷新 DSH 的会话列表）。面板自己不碰这套逻辑：它需要插件入口持有的
  *   `ctx`，而面板只是个对话框。
+ * @param {(sessionId: string) => Promise<void>} [options.onRestored] 恢复后刷新 DSH 会话列表。
  * @returns {void}
  */
-export function openTrashPanel({ onChanged, onBeforePurge, onPurged } = {}) {
+export function openTrashPanel({ onChanged, onBeforePurge, onPurged, onRestored } = {}) {
   /** @type {{policy: object, sessions: object[]}|null} */
   let state = null
   /** @type {HTMLElement|null} */
@@ -173,6 +174,7 @@ export function openTrashPanel({ onChanged, onBeforePurge, onPurged } = {}) {
       runOnce(restoreButton, async () => {
         try {
           await restoreSession(entry.sessionId)
+          await onRestored?.(entry.sessionId)
           // Host 已确认日志回到原位，立即清除暂存期间的幽灵判定。
           applyProbe({ present: [entry.sessionId], missing: [] })
           unhideSession(entry.sessionId)

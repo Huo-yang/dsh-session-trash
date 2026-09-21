@@ -65,3 +65,40 @@ test('冷会话无需 handle，仍在文件删除期间阻止同 id 激活', asy
   await f.agents.create({ sessionId: 'session-cold' })
   assert.ok(f.liveAgents.has('session-cold'))
 })
+
+test('移入回收站释放 live 会话并持续阻止，恢复后允许再次加载', async () => {
+  const f = fixture()
+  const guard = installRuntimeReleaseGuard(f.ctx)
+  await guard.initialize([])
+  await f.agents.create({ sessionId: 'session-trashed' })
+  await guard.trash('session-trashed')
+  assert.equal(f.liveAgents.has('session-trashed'), false)
+  assert.equal(f.liveSessions.has('session-trashed'), false)
+  await assert.rejects(f.agents.resume({ resumeSessionId: 'session-trashed' }), /位于回收站/)
+  await guard.untrash('session-trashed')
+  await f.agents.resume({ resumeSessionId: 'session-trashed' })
+  assert.ok(f.liveAgents.has('session-trashed'))
+})
+
+test('启动时从索引恢复回收站阻止集合', async () => {
+  const f = fixture()
+  const guard = installRuntimeReleaseGuard(f.ctx)
+  await guard.initialize(['session-from-index'])
+  await assert.rejects(f.agents.resume({ resumeSessionId: 'session-from-index' }), /位于回收站/)
+  await guard.untrash('session-from-index')
+  await f.agents.resume({ resumeSessionId: 'session-from-index' })
+  assert.ok(f.liveAgents.has('session-from-index'))
+})
+
+test('运行时释放失败时撤销新回收站阻止', async () => {
+  const f = fixture()
+  const agent = { id: 'session-untracked-trash' }
+  f.liveAgents.set(agent.id, agent)
+  f.liveSessions.set(agent.id, { id: agent.id })
+  const guard = installRuntimeReleaseGuard(f.ctx)
+  await assert.rejects(guard.trash(agent.id), /请重启 DSH 后重试/)
+  f.liveAgents.delete(agent.id)
+  f.liveSessions.delete(agent.id)
+  await f.agents.resume({ resumeSessionId: agent.id })
+  assert.ok(f.liveAgents.has(agent.id))
+})
