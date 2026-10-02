@@ -7,7 +7,7 @@
 <p align="center">Retention periods, deletion confirmations, and automatic cleanup — integrated with native settings</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.3-orange" alt="Version 0.1.3" />
+  <img src="https://img.shields.io/badge/version-0.2.0-orange" alt="Version 0.2.0" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D24-brightgreen" alt="Node.js >= 24" />
   <img src="https://img.shields.io/badge/pnpm-11.19.0-F69220" alt="pnpm 11.19.0" />
@@ -28,7 +28,7 @@
 - **Session menu**: adds “Move to trash” and “Delete permanently” to the row menu.
 - **Trash panel**: inspect deleted sessions, restore them, delete individual entries, or empty the trash.
 - **Sidebar access**: a green dot indicates that the trash contains entries, without a numeric badge.
-- **Native settings section**: configure retention, confirmation prompts, and automatic expiration cleanup.
+- **Native plugin configuration**: configure retention, confirmation prompts, and automatic cleanup on DSH's Plugins page.
 - **List synchronization**: hides entries by exact session ID and handles stale rows whose logs no longer exist.
 
 DSH's native “Delete workspace” action removes only the workspace registration and retains the project directory and session logs. This plugin provides session-level trash and physical cleanup. Deleting a workspace never bulk-deletes its sessions; if that workspace no longer exists when a session is restored, the session appears under Ungrouped.
@@ -49,7 +49,7 @@ Review deleted sessions in one place, then restore them, delete them permanently
 
 ### Session deletion settings
 
-Configure trash behavior, retention days, confirmation prompts, and automatic cleanup in DSH's native settings interface.
+Configure trash behavior, retention days, confirmation prompts, and automatic cleanup on DSH's native Plugins page.
 
 ![DSH session deletion settings](docs/images/settings.png)
 
@@ -72,13 +72,13 @@ Prerequisite: DSH. Download `dsh-session-trash-<version>.tgz` and `SHA256SUMS.tx
 Pass the downloaded archive directly to DSH; manual extraction is not required:
 
 ```powershell
-dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.1.3.tgz"
+dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.2.0.tgz"
 ```
 
 If the profile does not already contain the Web GUI, add it and start DSH:
 
 ```powershell
-dsh plugin --profile trash add "@deepseek-ai/dsh-web-app@0.1.5-rc.2"
+dsh plugin --profile trash add "@deepseek-ai/dsh-web-app@0.2.0-rc.2"
 dsh --profile trash --port 3080
 ```
 
@@ -114,11 +114,11 @@ Once physical deletion has started, logs may be incomplete. The plugin refuses a
 $DSH_HOME/
 ├── sessions/                         Original session logs
 └── storages/
-    ├── dsh_session_trash.json         Policy, trash index, and deletion progress
+    ├── dsh_session_trash.json         Trash index, deletion progress, and downgrade policy mirror
     └── dsh_session_trash_files/       Staging area for permanent deletion
 ```
 
-Paths and the cleanup interval are currently defined in code. Runtime deletion policies are changed through the settings section.
+Paths and the cleanup interval are currently defined in code. Deletion policies are edited on DSH's Plugins page and stored in the active profile configuration.
 
 ## Development
 
@@ -137,6 +137,8 @@ Local profiles, test data, build output, and release artifacts are excluded from
 pnpm test                  # Isolated tests only; no live DSH connection
 pnpm run test:handlers     # Host endpoint behavior
 pnpm run test:store        # File operations, recovery, and concurrency
+pnpm run test:runtime      # Live Agent / Session teardown and blocking
+pnpm run test:settings     # DSH 0.2 Config migration and save contract
 pnpm run test:client       # Probe scheduling and menu handlers
 pnpm run docs:check        # Local documentation links
 pnpm run typecheck         # Configured TypeScript check; checkJs=false

@@ -61,7 +61,7 @@ await build({
   target: 'node22',
   // Stay a real import so the profile's node_modules resolves the one helper
   // the Host half shares with the rest of DSH.
-  external: ['@deepseek-ai/dsh-home-paths', '@deepseek-ai/cordis'],
+  external: ['@deepseek-ai/dsh-home-paths', '@deepseek-ai/cordis', '@deepseek-ai/schemastery'],
   logLevel: 'info',
 })
 
@@ -74,7 +74,12 @@ await build({
   target: 'es2022',
   // React comes from the shell's frozen module table, never from this bundle:
   // two React copies would break hooks and the renderer's bindings.
-  external: ['react', 'react-dom', 'react/jsx-runtime'],
+  external: [
+    'react',
+    'react-dom',
+    'react/jsx-runtime',
+    '@deepseek-ai/dsh-client-ui-primitives',
+  ],
   banner,
   footer,
   logLevel: 'info',

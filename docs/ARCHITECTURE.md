@@ -28,7 +28,8 @@
 | `src/client/row-identity.js` | 从行及分组的 React fiber 获取精确 ID |
 | `src/client/row-filter.js` | 隐藏回收站、墓碑及幽灵条目 |
 | `src/client/panel.js` | 回收站查看与操作 |
-| `src/client/settings-section.js` | 原生设置分区注册和跳转 |
+| `src/host/policy-settings.js` | DSH 0.2 插件 Config、旧策略迁移和降级镜像 |
+| `src/client/settings-section.js` | 原生「插件」配置页注册和跳转 |
 
 ## 删除状态与恢复
 
@@ -66,7 +67,8 @@ DSH 原生删除工作区只删除注册表记录，保留项目目录和会话�
 
 ## 前端集成约束
 
-- 菜单和工具栏没有所需的公开插槽，使用 DOM 注入。设置分区使用 `slots`。
+- 菜单和工具栏没有所需的公开插槽，使用 DOM 注入。配置页以包名注册到 `plugins.bundle.config`，挂在“已安装”包详情中。
+- 删除策略以 Loader 条目的 volatile `Config` 为权威，由 DSH 写入 profile patch；旧索引 policy 只做首次迁移和降级镜像。
 - 客户端入口保持 `inject = []`，运行时等待服务；避免阻断 DSH 启动。
 - 删除目标只能来自精确会话 ID，不能按标题、列表序号或浮层位置猜测。
 - 不直接删除 React 管理的节点；菜单通过事件关闭。

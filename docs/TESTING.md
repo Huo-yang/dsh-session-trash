@@ -16,6 +16,8 @@ Runs documentation checks, the configured TypeScript check, isolated tests, and 
 | --- | --- |
 | `pnpm run test:handlers` | Fake store / workspace registry; endpoint behavior |
 | `pnpm run test:store` | Temporary directories; deletion, recovery, path boundaries, concurrency, workspace-removal interaction |
+| `pnpm run test:runtime` | Fake Agent / Session registries; teardown, blocking, restart rebuild, rollback |
+| `pnpm run test:settings` | DSH 0.2 Config migration, native presentation, revision-aware writes |
 | `pnpm run test:client` | Controlled timers and a simulated host; actual menu handlers and probe lifecycle |
 | `pnpm run docs:check` | Local Markdown links and headings |
 

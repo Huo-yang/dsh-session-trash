@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-01
+
+### 兼容 / Compatibility
+
+- 适配并完整隔离验证 DSH `0.2.0-rc.2`。
+- 删除策略改用 DSH 0.2 的 volatile 插件 `Config`，配置页迁入原生「插件」管理界面；旧索引策略首次自动迁移并保留降级镜像。
+- DSH 0.2 不再提供当前会话快照时，按 `aria-selected` 的精确会话行识别当前会话，删除前仍会安全切换。
+
+Verified against DSH `0.2.0-rc.2`, migrated deletion policy to the native volatile plugin Config contract and Plugins page, and added an exact selected-row fallback when the current-session snapshot is absent.
+
+### 验证 / Validation
+
+- 隔离 Host 验证 live 会话移入回收站后的 Agent/Session 释放、同 ID 阻止、恢复、重启持久化阻止与永久删除。
+- 浏览器验证原生插件配置页的暂存、放弃、保存及 profile patch 落盘。
+
+Validated live teardown, blocking, restore, restart persistence, permanent deletion, and native settings save/discard behavior in an isolated DSH home.
+
 ## [0.1.3] - 2026-09-21
 
 ### 修复 / Fixes
