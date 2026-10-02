@@ -36,6 +36,24 @@ test('从真实 fiber 路径读出 ACP 裸 UUID 会话', t => {
     blank: false,
   })
 })
+
+test('从 DSH 0.2 data-row-key 读出会话，不依赖 React fiber', t => {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, 'HTMLElement')
+  class FakeElement {
+    getAttribute(name) { return name === 'data-row-key' ? 'session:session-7f5a3680-6a0b-46bd-829b-a3847d2754d9' : null }
+    querySelector(selector) { return selector.includes('title') ? { textContent: 'Test' } : null }
+  }
+  globalThis.HTMLElement = FakeElement
+  t.after(() => {
+    if (saved) Object.defineProperty(globalThis, 'HTMLElement', saved)
+    else delete globalThis.HTMLElement
+  })
+  assert.deepEqual(readRowIdentity(new FakeElement()), {
+    sessionId: 'session-7f5a3680-6a0b-46bd-829b-a3847d2754d9',
+    title: 'Test',
+    blank: false,
+  })
+})
 function deferred() {
   let resolve, reject
   const promise = new Promise((yes, no) => { resolve = yes; reject = no })
@@ -148,7 +166,8 @@ const stubs = {
     export async function deleteSessions(rows, intent) { const s=globalThis.__trashTest; s.events.push('delete:'+intent); if(s.fail) throw new Error('delete failed'); return { mode: intent==='permanent'?'permanent':'trashed' } }`,
   'ui.js': `export async function confirmDialog() { const s=globalThis.__trashTest; s.events.push('confirm'); return s.confirmed }
     export function toast(message, kind) { const s=globalThis.__trashTest; s.messages.push({message,kind}); s.done.resolve() }`,
-  'session-menu.js': `export function createSessionMenuExtension(callbacks) { globalThis.__trashTest.menu=callbacks; return {observe(){},scan(){},dispose(){}} }`,
+  'session-menu.js': `export function createSessionMenuExtension(callbacks) { globalThis.__trashTest.menu=callbacks; return {observe(){},scan(){},dispose(){}} }
+    export function armNativeSessionMenu() { return () => {} }`,
   'toolbar-button.js': 'export function createToolbarButton() { return {ensure(){},setCount(){},dispose(){}} }',
   'styles.js': 'export function injectStyles() {}',
   'settings-section.js': 'export function armSettingsSection() {return ()=>{}}; export function openTrashSettingsSection() {}',

@@ -7,7 +7,7 @@
 <p align="center">支持保留天数、删除确认与到期自动清理，设置融入原生界面</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.2.0-orange" alt="Version 0.2.0" />
+  <img src="https://img.shields.io/badge/version-0.2.1-orange" alt="Version 0.2.1" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D24-brightgreen" alt="Node.js >= 24" />
   <img src="https://img.shields.io/badge/pnpm-11.19.0-F69220" alt="pnpm 11.19.0" />
@@ -58,12 +58,12 @@ DSH 原生“删除工作区”只移除工作区登记，保留项目目录和�
 | 项目 | 当前范围 |
 | --- | --- |
 | DSH | 每个版本已验证的 DSH 版本记录在对应 GitHub Release 说明中 |
-| 界面 | DSH Web GUI；菜单识别依赖中文「归档会话」文案 |
+| 界面 | DSH Web GUI；DSH 0.2 使用官方会话菜单插槽，旧版保留兼容路径 |
 | Node.js | 开发基线为 Node.js 24，本地验证版本为 `24.11.0` |
 | 包管理器 | pnpm `11.19.0`，由 `packageManager` 固定 |
 | 系统 | Windows 已做本地隔离验证；GitHub CI 覆盖 Windows / Linux |
 
-菜单与工具栏使用 DOM 注入，部分身份识别依赖 React 内部结构，上游升级后需要重新验证。英文 README 不代表插件界面已完整支持英文。
+DSH 0.2 的会话菜单使用官方插槽，并以 `data-row-key` 识别会话；工具栏及旧版兼容路径仍使用 DOM 注入，旧版身份识别可能依赖 React 内部结构。上游升级后仍需按 Release 说明重新验证。英文 README 不代表插件界面已完整支持英文。
 
 ## 安装
 
@@ -72,7 +72,7 @@ DSH 原生“删除工作区”只移除工作区登记，保留项目目录和�
 将下载的压缩包直接交给 DSH 安装，无需手工解压：
 
 ```powershell
-dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.2.0.tgz"
+dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.2.1.tgz"
 ```
 
 仅当该 profile 尚未配置 Web GUI 时，再添加 Web 插件，然后启动 DSH：

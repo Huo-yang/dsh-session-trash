@@ -25,7 +25,7 @@
 | `src/client/index.js` | UI 装配、确认、删除前切换和删除后刷新 |
 | `src/client/ghost-probe.js` | 单请求、单定时器的幽灵探测调度 |
 | `src/client/ghost-sessions.js` | 连续缺失判定和待确认记录 |
-| `src/client/row-identity.js` | 从行及分组的 React fiber 获取精确 ID |
+| `src/client/row-identity.js` | 从 `data-row-key` 获取精确 ID，并以 React fiber 兼容旧版 |
 | `src/client/row-filter.js` | 隐藏回收站、墓碑及幽灵条目 |
 | `src/client/panel.js` | 回收站查看与操作 |
 | `src/host/policy-settings.js` | DSH 0.2 插件 Config、旧策略迁移和降级镜像 |
@@ -67,13 +67,13 @@ DSH 原生删除工作区只删除注册表记录，保留项目目录和会话�
 
 ## 前端集成约束
 
-- 菜单和工具栏没有所需的公开插槽，使用 DOM 注入。配置页以包名注册到 `plugins.bundle.config`，挂在“已安装”包详情中。
+- DSH 0.2 的会话菜单通过 `sidebar.workspaces.session.menu.item` 原生插槽注册；工具栏和旧版菜单兼容路径使用 DOM 注入。配置页以包名注册到 `plugins.bundle.config`，挂在“已安装”包详情中。
 - 删除策略以 Loader 条目的 volatile `Config` 为权威，由 DSH 写入 profile patch；旧索引 policy 只做首次迁移和降级镜像。
 - 客户端入口保持 `inject = []`，运行时等待服务；避免阻断 DSH 启动。
 - 删除目标只能来自精确会话 ID，不能按标题、列表序号或浮层位置猜测。
 - 不直接删除 React 管理的节点；菜单通过事件关闭。
 - 幽灵探测需要两次缺失确认，复测强制读盘；退出列表的记录被清理，卸载后丢弃在途结果。
-- 菜单识别含中文文案依赖，DOM / React 内部结构变化可能导致入口失效。
+- DSH 0.2 的行身份优先读取稳定的 `data-row-key="session:<id>"`；旧版菜单兼容路径仍含中文文案和 React 内部结构依赖，相关变化可能导致旧版入口失效。
 
 ## 构建产物
 

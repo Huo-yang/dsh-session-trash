@@ -2,7 +2,7 @@
  * dsh-session-trash 的浏览器半边。
  *
  * 四处 UI：
- * 1. 会话行「…」菜单里的「删除会话」（见 session-menu.js，DOM 注入）。
+ * 1. 会话行「…」菜单里的删除动作（见 session-menu.js；DSH 0.2 使用原生插槽，旧版以 DOM 注入兼容）。
  * 2. 侧边栏动作条右侧的回收站入口与「里面有会话」状态点（见 toolbar-button.js，DOM 注入）。
  * 3. 回收站管理面板（见 panel.js，插件自有对话框）。
  * 4. 「会话删除与回收站」原生插件配置页（见 settings-section.js，走 DSH 的 slots 扩展点）。
@@ -17,7 +17,7 @@ import { createGhostProbe } from './ghost-probe.js'
 import { openTrashPanel } from './panel.js'
 import { hideSession, listHiddenSessions, listPurgedSessions, rememberPurged, setHiddenEntries, sweep } from './row-filter.js'
 import { readGroupIdentity, readRowIdentity } from './row-identity.js'
-import { createSessionMenuExtension } from './session-menu.js'
+import { armNativeSessionMenu, createSessionMenuExtension } from './session-menu.js'
 import { armSettingsSection, openTrashSettingsSection } from './settings-section.js'
 import { createToolbarButton } from './toolbar-button.js'
 import { injectStyles } from './styles.js'
@@ -59,6 +59,10 @@ export function apply(ctx) {
     onPurge: identity => {
       void requestPurge(identity)
     },
+  })
+  const disarmNativeMenu = armNativeSessionMenu(ctx, {
+    onTrash: identity => { void requestTrash(identity) },
+    onPurge: identity => { void requestPurge(identity) },
   })
 
   /**
@@ -203,7 +207,7 @@ export function apply(ctx) {
    * **默认不弹确认框。** 移入回收站是低风险、可恢复的操作，为它弹一次模态框是
    * 多余的摩擦；设置里的「移入回收站前确认」默认关闭，用户需要时才打开。
    *
-   * 删除目标来自行的 React fiber（精确会话 id + 它在日志里的持久标题），
+   * 删除目标来自原生菜单插槽或会话行身份（精确会话 id + 它在日志里的持久标题），
    * **不做任何按标题的反查**：DSH 对没有持久标题的会话显示的是工作区目录名，
    * 按标题匹配既会误伤同工作区的其它会话，也会把同名会话误判为「无法区分」。
    * 用户点了哪一行，删的就是哪一行。
@@ -413,6 +417,7 @@ export function apply(ctx) {
     ghostProbe.dispose()
     observer.disconnect()
     menu.dispose()
+    disarmNativeMenu()
     toolbar.dispose()
     disarmSettings()
   }
