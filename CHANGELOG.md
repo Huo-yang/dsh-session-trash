@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-02
+
+### 修复 / Fixed
+
+- 修复 DSH `0.2.0-rc.2` 不再暴露旧式 React fiber 后，会话“…”菜单缺少“移入回收站”和“彻底删除”的问题；优先使用稳定的 `data-row-key` 读取精确会话 ID，并保留旧版兼容路径。
+
+- Restored the trash and permanent-delete session menu actions on DSH `0.2.0-rc.2` by reading the stable `data-row-key`, while retaining the legacy React-fiber fallback.
+
 ## [0.2.0] - 2026-10-01
 
 ### 兼容 / Compatibility

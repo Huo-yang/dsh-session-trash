@@ -1,10 +1,9 @@
 /**
  * 从会话行的 DOM 上读出它的**精确身份**。
  *
- * DSH 的会话行不暴露 id 属性，但行节点上挂着 React 的内部 fiber，`fiber.memoizedProps.node`
- * 正是渲染这一行的 `SessionNode`（`{ id, title, blank, updatedAt, … }`）。这是唯一
- * 能拿到精确会话 id 的地方，也是本插件**唯一**用来把「用户点的那一行」映射回
- * 「真实会话」的依据。
+ * DSH 0.2 的会话行通过 `data-row-key="session:<id>"` 暴露稳定身份；旧版则只能从
+ * React 内部 fiber 的 `memoizedProps.node` 读取。优先使用公开 DOM 属性，并保留
+ * fiber 作为旧版兼容兜底。
  *
  * 为什么不做别的猜测：
  * - **不能按标题反查。** DSH 的行标题是 `displayTitle`，没有持久标题的会话显示
@@ -53,12 +52,35 @@ const FIBER_DEPTH = 24
  */
 export function readRowIdentity(row) {
   if (!(row instanceof HTMLElement)) return null
+  const domIdentity = readDomRowIdentity(row)
+  if (domIdentity !== null) return domIdentity
   const node = readSessionNode(row)
   if (node === null) return null
   return {
     sessionId: node.sessionId,
     title: typeof node.title === 'string' ? node.title : '',
     blank: node.blank === true,
+  }
+}
+
+/**
+ * 从 DSH 0.2 的稳定行键读取会话身份。
+ * @param {HTMLElement} row 会话行。
+ * @returns {{sessionId: string, title: string, blank: boolean}|null} 会话身份。
+ */
+function readDomRowIdentity(row) {
+  if (typeof row.getAttribute !== 'function') return null
+  const rowKey = row.getAttribute('data-row-key')
+  if (typeof rowKey !== 'string' || !rowKey.startsWith('session:')) return null
+  const sessionId = rowKey.slice('session:'.length)
+  if (!isSessionId(sessionId)) return null
+  const titleNode = typeof row.querySelector === 'function'
+    ? row.querySelector('[class$="_title"], [class$="-title"]')
+    : null
+  return {
+    sessionId,
+    title: titleNode?.textContent?.trim() ?? '',
+    blank: false,
   }
 }
 

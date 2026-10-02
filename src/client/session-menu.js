@@ -37,6 +37,75 @@ const lastTriggered = []
 /** 保留的最近点击条数。 */
 const TRIGGER_HISTORY = 5
 
+/** DSH 0.2 原生会话菜单插槽。 */
+const NATIVE_MENU_SLOT = 'sidebar.workspaces.session.menu.item'
+
+/** 等待原生插槽服务出现的轮询参数。 */
+const SLOT_ARM_INTERVAL_MS = 200
+const SLOT_ARM_TIMEOUT_MS = 30_000
+
+/** @returns {(specifier: string) => any} DSH 模块表 require。 */
+function moduleRequire() {
+  const requireFunction = globalThis.__dshSessionTrashRequire
+  if (typeof requireFunction !== 'function') throw new Error('session-trash: module-table require is not available')
+  return requireFunction
+}
+
+/**
+ * DSH 0.2 原生菜单项。
+ * @param {object} props 插槽投影属性和本插件动作。
+ * @returns {import('react').ReactElement} 菜单项。
+ */
+function NativeSessionMenuItem({ sessionId, displayTitle, useMenuOpenState, label, separatorBefore, onActivate }) {
+  const React = moduleRequire()('react')
+  const { MenuItemButton, IconTrashOutlineRegular } = moduleRequire()('@deepseek-ai/dsh-client-ui-primitives')
+  const [, setMenuOpen] = useMenuOpenState()
+  return React.createElement(MenuItemButton, {
+    danger: true,
+    separatorBefore,
+    icon: React.createElement(IconTrashOutlineRegular, { size: 16 }),
+    onSelect: () => {
+      setMenuOpen(false)
+      onActivate({ sessionId, title: displayTitle ?? '', blank: false })
+    },
+  }, label)
+}
+
+/**
+ * 注册 DSH 0.2 官方会话菜单插槽；旧版仍由 DOM 注入兜底。
+ * @param {any} ctx Client 上下文。
+ * @param {object} actions 菜单动作。
+ * @returns {() => void} 取消注册。
+ */
+export function armNativeSessionMenu(ctx, { onTrash, onPurge }) {
+  const startedAt = Date.now()
+  let timer
+  let dispose
+  let stopped = false
+
+  const attempt = () => {
+    if (stopped) return
+    const slots = ctx.get?.('slots')
+    if (slots === undefined || typeof slots.inject !== 'function' || typeof slots.register !== 'function') {
+      if (Date.now() - startedAt < SLOT_ARM_TIMEOUT_MS) timer = window.setTimeout(attempt, SLOT_ARM_INTERVAL_MS)
+      return
+    }
+    dispose = slots.inject(NATIVE_MENU_SLOT, function* () {
+      yield slots.register({ name: NATIVE_MENU_SLOT, id: 'dsh-session-trash.trash', order: 500 }, props =>
+        NativeSessionMenuItem({ ...props, label: '移入回收站', separatorBefore: true, onActivate: onTrash }))
+      yield slots.register({ name: NATIVE_MENU_SLOT, id: 'dsh-session-trash.purge', order: 600 }, props =>
+        NativeSessionMenuItem({ ...props, label: '彻底删除', separatorBefore: false, onActivate: onPurge }))
+    })
+  }
+
+  timer = window.setTimeout(attempt, SLOT_ARM_INTERVAL_MS)
+  return () => {
+    stopped = true
+    if (timer !== undefined) window.clearTimeout(timer)
+    if (typeof dispose === 'function') dispose()
+  }
+}
+
 /**
  * 记录一次行菜单触发器的点击（文档级 `capture` 监听，先于 React 的处理器）。
  * @param {Event} event 点击事件。
@@ -192,6 +261,7 @@ export function createSessionMenuExtension({ onTrash, onPurge }) {
     if (!list.isConnected) return
     if (list.querySelector(`[${DELETE_ITEM_ATTRIBUTE}]`) !== null) return
     const buttons = [...list.querySelectorAll('button[role="menuitem"]')]
+    if (buttons.some(button => button.textContent?.trim() === '移入回收站')) return
     const archive = buttons.find(button => button.textContent?.trim() === '归档会话')
     if (archive === undefined) return
     const row = findOwningSessionRow()

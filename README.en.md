@@ -7,7 +7,7 @@
 <p align="center">Retention periods, deletion confirmations, and automatic cleanup — integrated with native settings</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.2.0-orange" alt="Version 0.2.0" />
+  <img src="https://img.shields.io/badge/version-0.2.1-orange" alt="Version 0.2.1" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D24-brightgreen" alt="Node.js >= 24" />
   <img src="https://img.shields.io/badge/pnpm-11.19.0-F69220" alt="pnpm 11.19.0" />
@@ -58,12 +58,12 @@ Configure trash behavior, retention days, confirmation prompts, and automatic cl
 | Component | Current scope |
 | --- | --- |
 | DSH | The tested DSH version for each plugin release is recorded in its GitHub Release notes |
-| Interface | DSH Web GUI; menu detection depends on the Chinese “归档会话” label |
+| Interface | DSH Web GUI; DSH 0.2 uses the official session-menu slot, with a legacy compatibility path |
 | Node.js | Development baseline: Node.js 24; locally verified with `24.11.0` |
 | Package manager | pnpm `11.19.0`, pinned through `packageManager` |
 | OS | Isolated tests are verified locally on Windows; GitHub CI covers Windows and Linux |
 
-Menu and toolbar integration uses DOM injection, and identity detection depends partly on React internals. Revalidate after upstream upgrades. This English README does not imply a fully localized English plugin interface.
+On DSH 0.2, session-menu actions use the official slot and session rows are identified through `data-row-key`. The toolbar and legacy compatibility path still use DOM injection, and legacy identity detection may depend on React internals. Revalidate against upstream upgrades as documented in each Release. This English README does not imply a fully localized English plugin interface.
 
 ## Installation
 
@@ -72,7 +72,7 @@ Prerequisite: DSH. Download `dsh-session-trash-<version>.tgz` and `SHA256SUMS.tx
 Pass the downloaded archive directly to DSH; manual extraction is not required:
 
 ```powershell
-dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.2.0.tgz"
+dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.2.1.tgz"
 ```
 
 If the profile does not already contain the Web GUI, add it and start DSH:
