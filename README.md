@@ -7,7 +7,7 @@
 <p align="center">支持保留天数、删除确认与到期自动清理，设置融入原生界面</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.3-orange" alt="Version 0.1.3" />
+  <img src="https://img.shields.io/badge/version-0.2.0-orange" alt="Version 0.2.0" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D24-brightgreen" alt="Node.js >= 24" />
   <img src="https://img.shields.io/badge/pnpm-11.19.0-F69220" alt="pnpm 11.19.0" />
@@ -28,7 +28,7 @@
 - **会话行菜单**：在「…」菜单中添加「移入回收站」和「彻底删除」。
 - **回收站面板**：查看已删除会话，支持恢复、逐条永久删除和清空。
 - **侧边栏入口**：回收站有内容时显示绿色状态点，不显示数字角标。
-- **原生设置分区**：配置暂存、保留天数、确认提示和到期自动清理。
+- **原生插件配置**：在 DSH「插件」页配置暂存、保留天数、确认提示和到期自动清理。
 - **列表同步**：按精确会话 ID 隐藏已删除条目，并处理日志已删除但仍留在列表中的会话。
 
 DSH 原生“删除工作区”只移除工作区登记，保留项目目录和会话日志；本插件负责会话级回收站与物理清理。删除工作区不会批量删除其中的会话，恢复时原工作区若已不存在，会话将显示在“未分组”中。
@@ -49,7 +49,7 @@ DSH 原生“删除工作区”只移除工作区登记，保留项目目录和�
 
 ### 会话删除设置
 
-在 DSH 原生设置界面中配置回收站、保留天数、确认提示和自动清理。
+在 DSH 原生「插件」页面中配置回收站、保留天数、确认提示和自动清理。
 
 ![DSH 会话删除设置页面](docs/images/settings.png)
 
@@ -72,13 +72,13 @@ DSH 原生“删除工作区”只移除工作区登记，保留项目目录和�
 将下载的压缩包直接交给 DSH 安装，无需手工解压：
 
 ```powershell
-dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.1.3.tgz"
+dsh plugin --profile trash add "C:\Downloads\dsh-session-trash-0.2.0.tgz"
 ```
 
 仅当该 profile 尚未配置 Web GUI 时，再添加 Web 插件，然后启动 DSH：
 
 ```powershell
-dsh plugin --profile trash add "@deepseek-ai/dsh-web-app@0.1.5-rc.2"
+dsh plugin --profile trash add "@deepseek-ai/dsh-web-app@0.2.0-rc.2"
 dsh --profile trash --port 3080
 ```
 
@@ -114,11 +114,11 @@ dsh --profile trash --port 3080
 $DSH_HOME/
 ├── sessions/                         原始会话日志
 └── storages/
-    ├── dsh_session_trash.json         策略、回收站索引和删除进度
+    ├── dsh_session_trash.json         回收站索引、删除进度和降级兼容策略镜像
     └── dsh_session_trash_files/       永久删除过程中的暂存目录
 ```
 
-路径与清理间隔当前由代码设定；运行时删除策略通过设置分区修改。
+路径与清理间隔当前由代码设定；删除策略通过 DSH「插件」页修改，并写入当前 profile 配置。
 
 ## 开发
 
@@ -137,6 +137,8 @@ dsh plugin --profile trash add "$pluginPath"
 pnpm test                  # 仅运行隔离测试，不连接真实 DSH
 pnpm run test:handlers     # Host 端点行为
 pnpm run test:store        # 文件操作、恢复与并发
+pnpm run test:runtime      # live Agent / Session 释放与阻止
+pnpm run test:settings     # DSH 0.2 Config 迁移与保存契约
 pnpm run test:client       # 探测调度与菜单处理
 pnpm run docs:check        # 文档本地链接检查
 pnpm run typecheck         # 项目 TypeScript 检查，当前 checkJs=false

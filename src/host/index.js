@@ -11,6 +11,7 @@
  */
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { MAX_KEEP_DAYS } from './policy.js'
+import { Config, installPolicySettings } from './policy-settings.js'
 import { createTrashStore } from './store.js'
 import { TrashRequestError, registerTrashRoutes } from './routes.js'
 import { installRuntimeReleaseGuard } from './runtime.js'
@@ -28,7 +29,7 @@ const NOOP_RUNTIME = {
  * @param {any} ctx Cordis 上下文。
  * @returns {void}
  */
-export function apply(ctx) {
+export function apply(ctx, config) {
   const storagesDir = dshHomePath('storages')
   const sessionsRoot = dshHomePath('sessions')
   const store = createTrashStore({
@@ -36,6 +37,7 @@ export function apply(ctx) {
     trashRoot: `${storagesDir}/dsh_session_trash_files`,
     sessionsRoot,
   })
+  const policySettings = installPolicySettings(ctx, store, config)
   const runtime = installRuntimeReleaseGuard(ctx)
   void runtime.initialize(store.sessionIds().catch(error => {
     ctx.logger('session-trash').warn(`恢复回收站运行时阻止集合失败：${error instanceof Error ? error.message : String(error)}`)
@@ -48,7 +50,7 @@ export function apply(ctx) {
   ctx.inject(['workspaceRegistry'], scope => {
     workspaceRegistry = scope.workspaceRegistry
   })
-  const handlers = createHandlers(ctx, store, () => workspaceRegistry, runtime)
+  const handlers = createHandlers(ctx, store, () => workspaceRegistry, runtime, policySettings)
 
   // 路由必须等到 `webServer` 真的被提供之后再注册：插件行的激活顺序与
   // webserver 行无关，`ctx.get('webServer')` 在启动早期会是 undefined。
@@ -71,6 +73,8 @@ export function apply(ctx) {
     void sweepQuietly(ctx, store, () => workspaceRegistry, runtime)
   })
 }
+
+export { Config }
 
 /**
  * 执行一次到期清点，失败只记日志（清点是后台维护，不应打断任何请求路径）。
@@ -163,13 +167,13 @@ async function readStoredCwd(persistence, sessionId) {
  * @param {() => any} getWorkspaceRegistry 取当前工作区注册表（可能尚未就绪）。
  * @returns {Record<string, {method: string, run: (payload: any) => Promise<unknown>}>} 端点表。
  */
-export function createHandlers(ctx, store, getWorkspaceRegistry, runtime = NOOP_RUNTIME) {
+export function createHandlers(ctx, store, getWorkspaceRegistry, runtime = NOOP_RUNTIME, policySettings = null) {
   const hooks = removalHooks(ctx, getWorkspaceRegistry, runtime)
   return {
     state: {
       method: 'GET',
       run: async () => {
-        const [policy, sessions] = await Promise.all([store.readPolicy(), store.list()])
+        const [policy, sessions] = await Promise.all([policySettings?.read?.() ?? store.readPolicy(), store.list()])
         return {
           policy,
           sessions,
@@ -296,7 +300,7 @@ export function createHandlers(ctx, store, getWorkspaceRegistry, runtime = NOOP_
       method: 'POST',
       run: async payload => {
         const patch = payload !== null && typeof payload === 'object' ? payload['policy'] ?? payload : {}
-        const policy = await store.updatePolicy(patch)
+        const policy = await (policySettings?.update?.(patch) ?? store.updatePolicy(patch))
         return { policy }
       },
     },

@@ -153,7 +153,7 @@ const stubs = {
   'styles.js': 'export function injectStyles() {}',
   'settings-section.js': 'export function armSettingsSection() {return ()=>{}}; export function openTrashSettingsSection() {}',
   'panel.js': 'export function openTrashPanel() {}',
-  'row-identity.js': 'export function readRowIdentity() {}; export function readGroupIdentity() {}',
+  'row-identity.js': 'export function readRowIdentity(row) { return row?.identity }; export function readGroupIdentity() {}',
   'row-filter.js': `export function hideSession() {}; export function listHiddenSessions(){return []}; export function listPurgedSessions(){return []};
     export function rememberPurged(id){globalThis.__trashTest.events.push('mark:'+id)}; export function setHiddenEntries() {};
     export function sweep() {globalThis.__trashTest.sweeps++}`,
@@ -170,11 +170,13 @@ const bundle = await build({
 })
 const { apply } = await import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'))
 
-async function menuFixture(t, { current = 'session-a', ids = ['session-a', 'session-b'], fail = false, confirmed = true, useTrash = false } = {}) {
-  const saved = Object.fromEntries(['document', 'window', 'MutationObserver', '__trashTest', '__dshSessionTrash', '__dshSessionTrashErrors'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
+async function menuFixture(t, { current = 'session-a', selected = null, ids = ['session-a', 'session-b'], fail = false, confirmed = true, useTrash = false } = {}) {
+  const saved = Object.fromEntries(['document', 'window', 'HTMLElement', 'MutationObserver', '__trashTest', '__dshSessionTrash', '__dshSessionTrashErrors'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
   const state = { policy: { useTrash, confirmDelete: false }, events: [], messages: [], done: deferred(), fail, confirmed, sweeps: 0, timers: [] }
   globalThis.__trashTest = state
-  globalThis.document = { body: {} }
+  globalThis.HTMLElement = class {}
+  const selectedRow = selected === null ? [] : [Object.assign(new globalThis.HTMLElement(), { identity: { sessionId: selected } })]
+  globalThis.document = { body: {}, querySelectorAll(selector) { return selector.includes('aria-selected') ? selectedRow : [] } }
   globalThis.window = { setTimeout(fn, delay) { state.timers.push({ fn, delay }); return state.timers.length } }
   globalThis.MutationObserver = class {
     constructor(callback) { state.mutate = callback }
@@ -201,6 +203,13 @@ async function menuFixture(t, { current = 'session-a', ids = ['session-a', 'sess
 
 test('关闭暂存删除当前会话：确认、切换、删除、标记、刷新顺序正确', async t => {
   const f = await menuFixture(t)
+  f.menu.onTrash({ sessionId: 'session-a', title: 'A' })
+  await f.done.promise
+  assert.deepEqual(f.events, ['confirm', 'open:session-b', 'delete:permanent', 'mark:session-a', 'refresh-list'])
+})
+
+test('DSH 0.2 current 为空时按 aria-selected 会话行切换', async t => {
+  const f = await menuFixture(t, { current: null, selected: 'session-a' })
   f.menu.onTrash({ sessionId: 'session-a', title: 'A' })
   await f.done.promise
   assert.deepEqual(f.events, ['confirm', 'open:session-b', 'delete:permanent', 'mark:session-a', 'refresh-list'])

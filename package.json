@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-trash",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "DSH 会话删除与回收站管理插件：会话行删除入口、回收站面板、删除策略设置",
@@ -42,13 +42,15 @@
     "test:store": "node --test scripts/store-test.mjs",
     "test:client": "node --test scripts/client-test.mjs",
     "test:runtime": "node --test scripts/runtime-test.mjs",
-    "test": "pnpm run test:handlers && pnpm run test:store && pnpm run test:runtime && pnpm run test:client",
+    "test:settings": "node --test scripts/policy-settings-test.mjs",
+    "test": "pnpm run test:handlers && pnpm run test:store && pnpm run test:runtime && pnpm run test:settings && pnpm run test:client",
     "docs:check": "node scripts/check-docs.mjs",
     "release:prepare": "node scripts/release.mjs",
     "check": "pnpm run docs:check && pnpm run typecheck && pnpm test && pnpm run build"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-home-paths": "^0.1.5-rc.2"
+    "@deepseek-ai/dsh-home-paths": "^0.2.0-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2"

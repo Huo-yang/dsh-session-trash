@@ -1,10 +1,9 @@
 /**
- * 「会话删除」设置分区：把删除策略作为**原生设置的一个分区**注册进 DSH 设置面板，
- * 与「通用 / 模型 / 插件」并列，而不是塞在回收站自己的对话框里。
+ * 「会话删除与回收站」插件设置卡片。
  *
- * 注册路径是 DSH 的官方 UI 扩展点：`ctx.slots.inject('settings.general.item', …)`
- * 的兄弟形式 `ctx.slots.inject('settings.section', …)`。分区自己拥有标题、行与
- * 说明文字，Shell 只负责渲染导航项与内容列。
+ * DSH 0.2 的官方契约是：Host 通过插件 Config 暴露 settings 命名空间，浏览器端
+ * 以包名注册 `plugins.bundle.config`。配置因此挂在“已安装”包详情内，不会被列成
+ * 一个独立的官方插件。
  *
  * 两个不同于 DSH 内部插件的约束：
  *
@@ -17,13 +16,13 @@
  *    文案直接写在组件里（本插件是面向中文界面的第三方插件，不参与 DSH 的
  *    字典与校验）。
  */
-import { getSnapshot, loadPolicy, subscribe, updatePolicy } from './settings-store.js'
+import { discardPolicy, getSnapshot, loadPolicy, savePolicyChanges, stagePolicy, subscribe } from './settings-store.js'
 
 /** 分区在设置导航里的稳定 id。 */
 export const SECTION_ID = 'session-trash'
 
 /** 分区在设置导航里的标题，同时用作面板「设置」按钮的跳转锚点。 */
-export const SECTION_LABEL = '会话删除'
+export const SECTION_LABEL = '会话删除与回收站'
 
 /** 等待 `slots` 服务出现的轮询间隔与上限。 */
 const ARM_INTERVAL_MS = 200
@@ -75,53 +74,48 @@ function SettingRow({ title, hint, control }) {
 }
 
 /**
- * 开关控件。
+ * DSH 原生开关控件。
+ *
+ * 直接复用插件管理页使用的 UI primitive，确保策略开关与包启用、组件启用
+ * 开关在尺寸、颜色、交互与无障碍行为上保持一致。
  * @param {object} props 组件属性。
  * @returns {import('react').ReactElement} 开关元素。
  */
 function Switch({ checked, disabled, onChange, label }) {
   const React = useReact()
-  return React.createElement('label', { className: 'dst-switch' },
-    React.createElement('input', {
-      type: 'checkbox',
-      checked,
-      disabled,
-      'aria-label': label,
-      onChange: event => { onChange(event.target.checked) },
-    }),
-    React.createElement('span', { className: 'dst-switch-track' }),
-    React.createElement('span', { className: 'dst-switch-thumb' }),
-  )
+  const { Switch: NativeSwitch } = moduleRequire()('@deepseek-ai/dsh-client-ui-primitives')
+  return React.createElement(NativeSwitch, { checked, disabled, onChange, label })
 }
 
 /**
  * 「会话删除」设置分区。
  * @returns {import('react').ReactElement} 分区元素。
  */
-export function SessionTrashSettingsSection() {
+function SessionTrashSettingsPage() {
   const React = useReact()
   const { useSyncExternalStore, useEffect } = React
-  const { policy, busy, error } = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+  const { draft, dirty, busy, error } = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
   useEffect(() => { void loadPolicy() }, [])
 
-  if (policy === null) {
-    return React.createElement('div', { className: 'dst-setting-section' },
+  if (draft === null) {
+    return React.createElement('div', { className: 'dst-plugin-card' },
       React.createElement('div', { className: 'dst-setting-hint' },
         error === null ? '正在加载会话删除设置…' : `加载会话删除设置失败：${error}`),
     )
   }
 
-  return React.createElement('div', { className: 'dst-setting-section' },
+  return React.createElement('div', { className: 'dst-plugin-settings-page' },
+    dirty && React.createElement('div', { className: 'dst-plugin-card-pending' }, '有未保存的修改'),
     error !== null && React.createElement('div', { className: 'dst-error' }, error),
     React.createElement(SettingRow, {
       title: '启用回收站',
       hint: '开启后，移入回收站的会话可以恢复。关闭后，该操作会在确认后永久删除会话。',
       control: React.createElement(Switch, {
         label: '启用回收站',
-        checked: policy.useTrash !== false,
+        checked: draft.useTrash !== false,
         disabled: busy,
-        onChange: checked => { void updatePolicy({ useTrash: checked }) },
+        onChange: checked => { stagePolicy({ useTrash: checked }) },
       }),
     }),
     React.createElement(SettingRow, {
@@ -135,14 +129,11 @@ export function SessionTrashSettingsSection() {
         max: 3650,
         step: 1,
         'aria-label': '保留天数',
-        defaultValue: String(typeof policy.keepDays === 'number' ? policy.keepDays : 30),
+        value: String(typeof draft.keepDays === 'number' ? draft.keepDays : 30),
         disabled: busy,
-        onBlur: event => {
+        onChange: event => {
           const parsed = Number.parseInt(event.target.value, 10)
-          void updatePolicy({ keepDays: Number.isNaN(parsed) ? 30 : parsed })
-        },
-        onKeyDown: event => {
-          if (event.key === 'Enter') event.target.blur()
+          stagePolicy({ keepDays: Number.isNaN(parsed) ? 30 : parsed })
         },
         }),
         React.createElement('span', { className: 'dst-number-unit', 'aria-hidden': true }, '天'),
@@ -153,9 +144,9 @@ export function SessionTrashSettingsSection() {
       hint: '开启后，每次移入回收站前显示确认提示，避免误操作。',
       control: React.createElement(Switch, {
         label: '移入回收站前确认',
-        checked: policy.confirmDelete === true,
+        checked: draft.confirmDelete === true,
         disabled: busy,
-        onChange: checked => { void updatePolicy({ confirmDelete: checked }) },
+        onChange: checked => { stagePolicy({ confirmDelete: checked }) },
       }),
     }),
     React.createElement(SettingRow, {
@@ -163,9 +154,9 @@ export function SessionTrashSettingsSection() {
       hint: '清空回收站或在其中逐条永久删除时显示确认提示。会话菜单中的「彻底删除」始终需要确认。',
       control: React.createElement(Switch, {
         label: '回收站永久删除确认',
-        checked: policy.confirmEmpty !== false,
+        checked: draft.confirmEmpty !== false,
         disabled: busy,
-        onChange: checked => { void updatePolicy({ confirmEmpty: checked, confirmPurge: checked }) },
+        onChange: checked => { stagePolicy({ confirmEmpty: checked, confirmPurge: checked }) },
       }),
     }),
     React.createElement(SettingRow, {
@@ -173,12 +164,24 @@ export function SessionTrashSettingsSection() {
       hint: '按保留天数自动永久删除过期会话。关闭后，需手动删除或清空回收站。',
       control: React.createElement(Switch, {
         label: '自动清理过期会话',
-        checked: policy.autoPurge !== false,
+        checked: draft.autoPurge !== false,
         disabled: busy,
-        onChange: checked => { void updatePolicy({ autoPurge: checked }) },
+        onChange: checked => { stagePolicy({ autoPurge: checked }) },
       }),
     }),
-  )
+    React.createElement('div', { className: 'dst-plugin-card-footer' },
+      React.createElement('button', { type: 'button', className: 'dst-plugin-card-discard', disabled: !dirty || busy, onClick: discardPolicy }, '放弃'),
+      React.createElement('button', { type: 'button', className: 'dst-plugin-card-save', disabled: !dirty || busy, onClick: () => { void savePolicyChanges() } }, busy ? '保存中…' : '保存'),
+    ))
+}
+
+/** 包详情配置槽只使用 page 视图；保留 summary 分支便于契约演进。 */
+export function SessionTrashSettingsSection({ view } = {}) {
+  const React = useReact()
+  if (view === 'summary') {
+    return React.createElement('span', null, '配置会话删除、保留期限和自动清理策略')
+  }
+  return React.createElement(SessionTrashSettingsPage)
 }
 
 /**
@@ -192,7 +195,6 @@ export function SessionTrashSettingsSection() {
  * @returns {() => void} 取消等待。
  */
 export function armSettingsSection(ctx) {
-  const disarmIcon = armSettingsNavIcon()
   const startedAt = Date.now()
   let timer
   let done = false
@@ -212,21 +214,16 @@ export function armSettingsSection(ctx) {
     }
     done = true
     timer = undefined
-    // 分区注册用 `slots.inject`：等 `settings.section` 槽位被声明后再注册，
-    // 槽位消失时自动摘除，生命周期跟随本插件 fiber。
-    dispose = slots.inject('settings.section', () => slots.register({
-      name: 'settings.section',
-      id: SECTION_ID,
-      // 排在「通用（0）/ 模型 / 插件」之后。
-      order: 100,
-      label: SECTION_LABEL,
+    // 按包名挂到“已安装”详情；槽位消失时自动摘除。
+    dispose = slots.inject('plugins.bundle.config', () => slots.register({
+      name: 'plugins.bundle.config',
+      key: 'dsh-session-trash',
     }, SessionTrashSettingsSection))
   }
 
   timer = window.setTimeout(attempt, ARM_INTERVAL_MS)
   return () => {
     done = true
-    disarmIcon()
     if (timer !== undefined) window.clearTimeout(timer)
     if (typeof dispose === 'function') dispose()
   }
@@ -257,75 +254,17 @@ export async function openTrashSettingsSection() {
     }
   }
 
-  // 已经打开过设置面板时，直接定位已有的导航项。
-  /** @returns {HTMLElement|null} 目标分区导航项。 */
-  const findNavCell = () => {
-    for (const button of document.querySelectorAll('button')) {
-      if (button.querySelector('span')?.textContent?.trim() === SECTION_LABEL) return button
-    }
-    return null
-  }
-
-  /**
-   * 目标分区是否已经生效（当前分区 + 内容已渲染）。
-   * @param {HTMLElement} cell 导航项。
-   * @returns {boolean} 是否已就位。
-   */
-  const sectionReady = cell => cell.getAttribute('aria-current') === 'true'
-    && document.querySelector('.dst-setting-section') !== null
-
-  let navCell = findNavCell()
-  if (navCell !== null) {
-    // 面板已经开着，切换本来就在一帧内完成，不需要屏蔽。
-    navCell.click()
-    return true
-  }
-
-  /** @returns {HTMLElement|null} 触发器。 */
-  const findTrigger = () => {
-    for (const button of document.querySelectorAll('button[aria-haspopup="dialog"]')) {
-      if (!(button instanceof HTMLElement)) continue
-      if (button.closest('[data-dsh-session-trash]') !== null) continue
-      return button
-    }
-    return null
-  }
-  const trigger = await waitFor(findTrigger, 3000)
+  const findPluginTrigger = () => [...document.querySelectorAll('button')].find(button =>
+    button.textContent?.trim() === '插件' && button.closest('[data-dsh-session-trash]') === null) ?? null
+  const trigger = await waitFor(findPluginTrigger, 3000)
   if (trigger === null) return false
+  trigger.click()
 
-  const root = document.documentElement
-  root.classList.add('dst-settings-jump')
-  try {
-    trigger.click()
-    navCell = await waitFor(findNavCell, 3000)
-    if (navCell === null) return false
-    navCell.click()
-    const ready = await waitFor(() => (sectionReady(navCell) ? navCell : null), 3000)
-    if (ready === null) return false
-    // 让浏览器把「已就位」的这一帧画出来再放开屏蔽，避免放开后还要再跳一次。
-    await new Promise(resolve => { window.requestAnimationFrame(() => { resolve() }) })
-    return true
-  } finally {
-    root.classList.remove('dst-settings-jump')
-  }
-}
+  const findPluginCard = () => [...document.querySelectorAll('button')].find(button =>
+    button.textContent?.includes('dsh-session-trash')) ?? null
+  const pluginCard = await waitFor(findPluginCard, 5000)
+  if (pluginCard === null) return false
+  pluginCard.click()
 
-/** 宿主按分区 id 硬编码齿轮兜底；只标记本分区，使用 CSS 复用垃圾桶图形。 */
-function armSettingsNavIcon() {
-  const attribute = 'data-dst-settings-trash-icon'
-  const scan = () => {
-    for (const button of document.querySelectorAll('[role="dialog"] button')) {
-      const isTarget = [...button.classList].some(name => name.endsWith('navCell'))
-        && button.textContent?.trim() === SECTION_LABEL
-      if (isTarget) button.setAttribute(attribute, '')
-      else if (button.hasAttribute(attribute)) button.removeAttribute(attribute)
-    }
-  }
-  const observer = new MutationObserver(scan)
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true })
-  scan()
-  return () => {
-    observer.disconnect()
-    for (const button of document.querySelectorAll('[' + attribute + ']')) button.removeAttribute(attribute)
-  }
+  return await waitFor(() => document.querySelector('.dst-plugin-settings-page'), 3000) !== null
 }

@@ -6,23 +6,8 @@
  * `data-dsh-session-trash` 标记，方便在 DevTools 里一眼认出是插件注入的。
  */
 
-import { ICON_TRASH } from './ui.js'
-
-const TRASH_MASK = `url("data:image/svg+xml,${encodeURIComponent(ICON_TRASH.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '))}")`
-
 /** 插件样式表文本；由 {@link injectStyles} 在插件加载时插入一次。 */
 export const STYLES = `
-[data-dst-settings-trash-icon] > svg { display: none !important; }
-[data-dst-settings-trash-icon]::before {
-  content: "";
-  width: 16px;
-  height: 16px;
-  flex: none;
-  background-color: currentColor;
-  -webkit-mask: ${TRASH_MASK} center / contain no-repeat;
-  mask: ${TRASH_MASK} center / contain no-repeat;
-}
-
 .dst-menu-item {
   display: flex;
   align-items: center;
@@ -234,13 +219,57 @@ html.dst-settings-jump [role="dialog"][aria-modal="true"] {
 .dst-setting-control { flex: none; display: flex; align-items: center; gap: 8px; }
 .dst-setting-section .dst-error { margin: 12px 0 0; }
 
+/* DSH「插件 → 可配置」中的独立卡片。结构、间距与原生插件卡片保持一致。 */
+.dst-plugin-card {
+  list-style: none;
+  overflow: hidden;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-3);
+  transition: border-color 0.16s, background 0.16s;
+}
+.dst-plugin-card:hover,
+.dst-plugin-card-open { border-color: var(--dsw-alias-label-dimmed); }
+.dst-plugin-card-open { background: var(--dsw-alias-bg-layer-2); }
+.dst-plugin-card-header {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dst-plugin-card-header:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: -2px; }
+.dst-plugin-card-heading { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.dst-plugin-card-name { color: var(--dsw-alias-label-primary); font-size: 15px; font-weight: 600; line-height: 1.4; }
+.dst-plugin-card-description { color: var(--dsw-alias-label-tertiary); font-size: 13px; line-height: 1.5; }
+.dst-plugin-card-pending { flex: none; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.dst-plugin-card-chevron { flex: none; color: var(--dsw-alias-label-tertiary); transition: transform 0.16s; }
+.dst-plugin-card-open .dst-plugin-card-chevron { transform: rotate(180deg); }
+.dst-plugin-card-body { margin: 0 16px; padding-bottom: 8px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
+.dst-plugin-card-footer { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 12px 0 4px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
+.dst-plugin-card-discard,
+.dst-plugin-card-save { appearance: none; padding: 5px 14px; border: 1px solid transparent; border-radius: 8px; font: inherit; font-size: 13px; line-height: 1.5; cursor: pointer; }
+.dst-plugin-card-discard { border-color: var(--dsw-alias-border-l2); background: transparent; color: var(--dsw-alias-label-secondary); }
+.dst-plugin-card-save { background: var(--dsw-alias-label-primary); color: var(--dsw-alias-bg-layer-3); }
+.dst-plugin-card-discard:disabled,
+.dst-plugin-card-save:disabled { opacity: 0.4; cursor: default; }
+
 .dst-number-unit {
   color: var(--dsw-alias-label-primary);
   font-size: 13px;
   white-space: nowrap;
 }
 .dst-number {
-  width: 88px;
+  box-sizing: border-box;
+  width: 50px;
   min-height: 30px;
   padding: 0 8px;
   border: 1px solid var(--dsw-alias-border-l2);

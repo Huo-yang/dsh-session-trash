@@ -5,7 +5,7 @@
  * 1. 会话行「…」菜单里的「删除会话」（见 session-menu.js，DOM 注入）。
  * 2. 侧边栏动作条右侧的回收站入口与「里面有会话」状态点（见 toolbar-button.js，DOM 注入）。
  * 3. 回收站管理面板（见 panel.js，插件自有对话框）。
- * 4. 「会话删除」原生设置分区（见 settings-section.js，走 DSH 的 slots 扩展点）。
+ * 4. 「会话删除与回收站」原生插件配置页（见 settings-section.js，走 DSH 的 slots 扩展点）。
  *
  * 这是一个**不注入任何服务**的 Cordis 客户端插件：`bootClient` 要求每个 Loader
  * 入口都进入 active，所以入口不能因为等待服务而停在 PENDING。设置分区因此在
@@ -104,6 +104,25 @@ export function apply(ctx) {
   const probeGhostSessions = ghostProbe.run
 
   /**
+   * 读取当前选中的会话。
+   *
+   * DSH 0.2 不再保证 `sessions.list.current` 有值，但侧边栏仍通过
+   * `aria-selected="true"` 标记当前会话行。服务值优先，DOM 标记只作为兼容兜底；
+   * 行身份仍由统一的 `readRowIdentity` 提取，避免标题或路径猜测。
+   * @param {any} snapshot 会话列表快照。
+   * @returns {string|null} 当前会话 id。
+   */
+  function currentSessionId(snapshot) {
+    if (typeof snapshot?.current === 'string' && snapshot.current !== '') return snapshot.current
+    for (const row of document.querySelectorAll('[role="treeitem"][aria-selected="true"]')) {
+      if (!(row instanceof HTMLElement)) continue
+      const identity = readRowIdentity(row)
+      if (typeof identity?.sessionId === 'string' && identity.sessionId !== '') return identity.sessionId
+    }
+    return null
+  }
+
+  /**
    * 如果被彻底删除的正好是**当前打开**的那条会话，先把界面切到最近的一条其它会话。
    *
    * 不切的话，删除之后当前选中项就成了一条已经不存在的会话：DSH 会把它判为失效，
@@ -124,7 +143,7 @@ export function apply(ctx) {
       const sessions = ctx.get('sessions')
       if (typeof sessions?.list?.getSnapshot !== 'function' || typeof sessions?.open !== 'function') return null
       const snapshot = sessions.list.getSnapshot()
-      if (snapshot?.current !== sessionId) return null
+      if (currentSessionId(snapshot) !== sessionId) return null
       // 候选必须是**真的还在**的会话：不能切到另一条已进回收站（界面上被隐藏）的
       // 会话上，否则等于把用户从一个看不见的会话换到另一个看不见的会话。
       const byId = snapshot.byId ?? {}
@@ -368,7 +387,7 @@ export function apply(ctx) {
     /** 当前会话列表状态（诊断用）：`{ ids, current, phase }`。 */
     sessionListState: () => {
       const snapshot = ctx.get('sessions')?.list?.getSnapshot?.()
-      return snapshot === undefined ? null : { ids: [...(snapshot.ids ?? [])], current: snapshot.current ?? null }
+      return snapshot === undefined ? null : { ids: [...(snapshot.ids ?? [])], current: currentSessionId(snapshot) }
     },
     /**
      * 一条会话在会话列表里的摘要（诊断用）。
